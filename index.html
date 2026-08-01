@@ -1,0 +1,1320 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Carrera Universitaria — LUD</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Space+Grotesk:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!-- Firebase (contador global de carreras) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>
+  /* Paleta inspirada en la identidad real de la Liga Universitaria de Deportes (LUD):
+     fondo claro, header azul marino con linea dorada, acentos celestes tipo "Otros Deportes". */
+  :root{
+    --bg:#EEF2F8; --surface:#FFFFFF; --surface2:#F3F6FB; --border:#D7E0EE;
+    --text:#152449; --muted:#5E6E8C;
+    --navy:#0F2050; --navy2:#14306E; --skyblue:#2E8FE0; --skyblue-soft:#E6F1FC;
+    --gold:#F2B632; --gold-soft:#FBEBC7;
+    --silver:#7C8798; --silver-soft:#E7E9EE;
+    --bronze:#B9683A; --bronze-soft:#F5E2D3;
+    --honor:#7B4FC9; --honor-soft:#EDE3FA;
+    --confrat:#2E8FE0; --confrat-soft:#E6F1FC;
+    --green:#1E9E63; --green-soft:#E3F6EC;
+    --red:#D23B2B; --red-soft:#FBE6E3;
+    --gold-text:#8A5D06; --silver-text:#4B5563; --bronze-text:#7A3F1D; --honor-text:#5B3499; --confrat-text:#155FA0; --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;}
+  #topbar{background:var(--navy);border-bottom:4px solid var(--gold);}
+  #topbar-inner{max-width:960px;margin:0 auto;padding:12px 18px;display:flex;justify-content:space-between;align-items:center;}
+  .lud-logo{font-family:'Barlow Condensed';font-weight:800;font-size:19px;letter-spacing:.02em;color:#fff;display:flex;gap:8px;align-items:center;}
+  .lud-logo b{color:var(--gold);}
+  .lud-tag{font-family:'Space Grotesk';font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:#BFD3F5;}
+  #subnav{background:var(--navy2);border-bottom:1px solid rgba(255,255,255,.1);}
+  #subnav-inner{max-width:960px;margin:0 auto;padding:8px 18px;display:flex;gap:16px;flex-wrap:wrap;}
+  #subnav-inner span{font-family:'Space Grotesk';font-size:11px;color:#BFD3F5;letter-spacing:.04em;display:inline-flex;align-items:center;gap:5px;opacity:.9;}
+  #subnav-inner span.hl{background:var(--skyblue);color:#fff;padding:3px 10px;border-radius:999px;opacity:1;}
+  #app{max-width:960px;margin:0 auto;padding:26px 18px 40px;}
+  h1,h2,h3{font-family:'Barlow Condensed',sans-serif;font-weight:700;margin:0 0 6px;letter-spacing:-0.01em;}
+  .eyebrow{font-family:'Space Grotesk',monospace;text-transform:uppercase;letter-spacing:.14em;font-size:11px;color:var(--gold-text);margin-bottom:8px;font-weight:600;}
+  .muted{color:var(--muted);}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:22px;margin-bottom:16px;box-shadow:0 2px 10px rgba(15,32,80,.06);}
+  .btn{font-family:'Space Grotesk',monospace;font-weight:500;font-size:14px;background:var(--navy);color:#fff;border:none;border-radius:999px;padding:12px 22px;cursor:pointer;transition:transform .12s ease, opacity .12s ease;}
+  .btn:hover{transform:translateY(-1px);opacity:.92;}
+  .btn.secondary{background:transparent;color:var(--text);border:1px solid var(--border);}
+  .btn.gold{background:var(--gold);color:#241B04;}
+  .btn.danger{background:transparent;color:var(--red);border:1px solid var(--red);}
+  .btn.small{padding:8px 14px;font-size:12px;}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  @media(max-width:640px){.grid2{grid-template-columns:1fr;}}
+  input[type=text],input[type=number],select,textarea{width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:11px 12px;font-family:'Inter';font-size:14px;outline:none;}
+  textarea{resize:vertical;min-height:70px;}
+  input:focus,select:focus,textarea:focus{border-color:var(--gold);}
+  label.field-label{font-family:'Space Grotesk',monospace;font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);display:block;margin-bottom:6px;}
+  .pill-choice{display:flex;gap:8px;}
+  .pill-choice button{flex:1;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;font-family:'Inter';font-size:14px;}
+  .pill-choice button.active{background:var(--gold);border-color:var(--gold);color:#241B04;font-weight:600;}
+  .pitch{background:linear-gradient(180deg,#0f2b1e,#0a1c14);border:1px solid var(--border);border-radius:12px;padding:16px;}
+  .pitch-line{display:flex;justify-content:center;gap:10px;margin:8px 0;flex-wrap:wrap;}
+  .pos-btn{min-width:52px;padding:8px 4px;border-radius:8px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);color:#F2F5FA;font-family:'Space Grotesk';font-size:12px;font-weight:600;cursor:pointer;text-align:center;}
+  .pos-btn.active{background:var(--gold);border-color:var(--gold);color:#241B04;font-weight:700;}
+  .shirt-card{background:radial-gradient(circle at 30% 20%, #1c3566, #0a1730);border:1px solid var(--border);border-radius:16px;padding:22px;text-align:center;}
+  .shirt-num{font-family:'Barlow Condensed';font-size:56px;font-weight:800;color:var(--gold);line-height:1;}
+  .shirt-name{font-family:'Space Grotesk';letter-spacing:.08em;text-transform:uppercase;font-size:15px;margin-top:4px;}
+  .club-offer{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:16px;cursor:pointer;transition:border-color .12s ease, transform .12s ease;}
+  .club-offer:hover{border-color:var(--gold);transform:translateY(-1px);}
+  .club-offer .family-tag{display:inline-block;font-family:'Space Grotesk';font-size:10px;color:var(--skyblue);background:var(--skyblue-soft);padding:2px 7px;border-radius:999px;margin-top:5px;}
+  .div-tag{display:inline-block;font-family:'Space Grotesk';font-size:11px;color:var(--gold-text);border:1px solid var(--gold-soft);background:var(--gold-soft);padding:2px 8px;border-radius:999px;margin-top:6px;font-weight:600;}
+  .stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;text-align:center;margin:14px 0;}
+  .stat-box{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 4px;}
+  .stat-box .v{font-family:'Barlow Condensed';font-size:23px;font-weight:700;}
+  .stat-box .l{font-family:'Space Grotesk';font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;}
+  .attr-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;margin-top:10px;}
+  .attr-row{display:flex;align-items:center;justify-content:space-between;font-size:12px;}
+  .attr-row .bar{flex:1;height:5px;background:var(--surface2);border-radius:3px;margin:0 8px;overflow:hidden;}
+  .attr-row .bar span{display:block;height:100%;background:var(--gold);}
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th{text-align:left;font-family:'Space Grotesk';font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);padding:6px 8px;border-bottom:1px solid var(--border);}
+  td{padding:7px 8px;border-bottom:1px solid var(--border);}
+  tr:last-child td{border-bottom:none;}
+  .tag{display:inline-block;font-family:'Space Grotesk';font-size:10px;padding:2px 7px;border-radius:999px;border:1px solid var(--border);margin:1px 2px 1px 0;}
+  .tag.up{color:var(--green);border-color:var(--green-soft);background:var(--green-soft);}
+  .tag.down{color:var(--red);border-color:var(--red-soft);background:var(--red-soft);}
+  .tag.oro{color:var(--gold-text);border-color:var(--gold-soft);background:var(--gold-soft);font-weight:600;}
+  .tag.plata{color:var(--silver-text);border-color:var(--silver-soft);background:var(--silver-soft);font-weight:600;}
+  .tag.bronce{color:var(--bronze-text);border-color:var(--bronze-soft);background:var(--bronze-soft);font-weight:600;}
+  .tag.honor{color:var(--honor-text);border-color:var(--honor-soft);background:var(--honor-soft);font-weight:600;}
+  .tag.confrat{color:var(--confrat-text);border-color:var(--confrat-soft);background:var(--confrat-soft);font-weight:600;}
+  .badge-ovr{display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;background:var(--gold);color:#241B04;border-radius:10px;font-family:'Barlow Condensed';font-weight:800;font-size:18px;}
+  .event-box{border:1px dashed var(--gold-soft);background:var(--gold-soft);border-radius:12px;padding:16px;margin-bottom:16px;}
+  .trophy-list{display:flex;flex-direction:column;gap:6px;}
+  .trophy-item{display:flex;gap:10px;align-items:center;font-size:14px;}
+  .disclaimer{font-size:12px;color:var(--muted);background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 14px;margin-bottom:18px;}
+  a{color:var(--gold-text);}
+
+  .details-box{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-top:10px;}
+  .details-row{font-size:13px;padding:5px 0;color:var(--text);}
+  .details-row:before{content:'◆ ';color:var(--gold-text);}
+
+  @keyframes trophyPop{0%{transform:scale(0) rotate(-15deg);opacity:0;}60%{transform:scale(1.2) rotate(6deg);opacity:1;}100%{transform:scale(1) rotate(0);}}
+  .trophy-anim{text-align:center;margin:10px 0 18px;}
+  .trophy-anim .icon{display:inline-block;animation:trophyPop .7s cubic-bezier(.34,1.56,.64,1);filter:drop-shadow(0 0 16px var(--gold));}
+  .trophy-anim .icon svg{display:block;margin:0 auto;width:72px;height:auto;}
+  .trophy-anim.small .icon{filter:drop-shadow(0 0 10px var(--gold));}
+  .trophy-anim.small .icon svg{width:42px;}
+  .trophy-anim .label{font-family:'Barlow Condensed';font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--gold-text);margin-top:4px;font-size:15px;}
+  .trophy-anim.small .label{font-size:12px;}
+  .trophy-anim.honor .icon{filter:drop-shadow(0 0 16px var(--honor));}
+  .trophy-anim.honor .label{color:var(--honor);}
+
+  #footerbar{max-width:960px;margin:0 auto;padding:6px 18px 30px;text-align:center;}
+  .credit{font-size:10px;color:var(--muted);opacity:.55;margin-top:4px;}
+  .counter{font-size:11px;color:var(--muted);opacity:.7;margin-top:2px;}
+
+  #feedbackBtn{position:fixed;bottom:18px;right:18px;width:46px;height:46px;border-radius:50%;background:var(--gold);color:#241B04;border:none;font-size:20px;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.4);z-index:50;}
+  .modal-overlay{position:fixed;inset:0;background:rgba(5,10,25,.7);display:none;align-items:center;justify-content:center;z-index:60;padding:20px;}
+  .modal-box{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:22px;max-width:380px;width:100%;}
+  .rate-row{display:flex;gap:10px;margin:10px 0;}
+  .rate-btn{flex:1;padding:14px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);font-size:22px;cursor:pointer;text-align:center;}
+  .rate-btn.active{border-color:var(--gold);background:var(--gold-soft);}
+</style>
+</head>
+<body>
+<div id="topbar">
+  <div id="topbar-inner">
+    <div class="lud-logo"><svg width="24" height="24" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;">
+      <path d="M50 6 L90 20 V50 C90 74 72 90 50 96 C28 90 10 74 10 50 V20 Z" fill="#ffffff" opacity=".14"/>
+      <g stroke="#ffffff" stroke-width="4.5" stroke-linecap="round">
+        <line x1="50" y1="86" x2="20" y2="24"/>
+        <line x1="50" y1="86" x2="32" y2="18"/>
+        <line x1="50" y1="86" x2="44" y2="14"/>
+        <line x1="50" y1="86" x2="56" y2="14"/>
+        <line x1="50" y1="86" x2="68" y2="18"/>
+        <line x1="50" y1="86" x2="80" y2="24"/>
+      </g>
+    </svg> LIGA <b>UNIVERSITARIA</b></div>
+    <div class="lud-tag">Modo Carrera</div>
+  </div>
+</div>
+<div id="subnav">
+  <div id="subnav-inner">
+    <span class="hl">⚽ Fútbol</span>
+    <span>📊 Estadísticas</span>
+    <span>🏆 Divisionales</span>
+    <span>🎓 Formativas</span>
+    <span onclick="openRules()" style="cursor:pointer;text-decoration:underline;">📋 Detalles de la Liga</span>
+  </div>
+</div>
+<div id="app"></div>
+<div id="footerbar">
+  <div class="counter">🏆 <span id="careerCount">—</span> carreras iniciadas en total</div>
+  <div class="counter">⚽ <span id="seasonsCount">—</span> partidas jugadas por todos</div>
+  <div class="credit">SG</div>
+</div>
+
+<button id="feedbackBtn" title="Dejar comentario">💬</button>
+<div class="modal-overlay" id="feedbackModal">
+  <div class="modal-box">
+    <div id="feedbackForm">
+      <h3 style="font-size:18px;">¿Qué te pareció?</h3>
+      <div class="rate-row">
+        <button class="rate-btn" id="rateUp">👍</button>
+        <button class="rate-btn" id="rateDown">👎</button>
+      </div>
+      <label class="field-label">Comentario / sugerencia (opcional)</label>
+      <textarea id="feedbackComment" placeholder="Qué mejorarías..."></textarea>
+      <div class="row" style="margin-top:12px;">
+        <button class="btn gold" id="sendFeedback">Enviar</button>
+        <button class="btn secondary" id="closeFeedback">Cerrar</button>
+      </div>
+    </div>
+    <div id="feedbackThanks" style="display:none;text-align:center;">
+      <h3>¡Gracias!</h3>
+      <p class="muted">Tu comentario ya quedó guardado.</p>
+      <button class="btn gold" id="closeFeedback2">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ================= DATA ================= */
+const CATEGORIES = [
+  {id:'sub14', label:'Sub 14', ageStart:13, ageEnd:14, type:'juvenil'},
+  {id:'sub16', label:'Sub 16', ageStart:15, ageEnd:16, type:'juvenil'},
+  {id:'sub18', label:'Sub 18', ageStart:17, ageEnd:18, type:'juvenil'},
+  {id:'sub20', label:'Sub 20', ageStart:19, ageEnd:20, type:'adulta', divisions:3, teams:16},
+  {id:'reserva', label:'Reserva', ageStart:21, ageEnd:21, type:'adulta', divisions:3, teams:16},
+  {id:'mayores', label:'Mayores', ageStart:22, ageEnd:31, type:'adulta', divisions:7, teams:16},
+  {id:'presenior', label:'Pre Senior', ageStart:32, ageEnd:39, type:'adulta', divisions:2, teams:16},
+  {id:'mas40', label:'Más 40', ageStart:40, ageEnd:55, type:'adulta', divisions:1, teams:16},
+];
+const DIV_LETTERS = ['A','B','C','D','E','F','G','H'];
+// Tamaño real de cada serie según las tablas de la Liga (varía por categoría).
+const SERIE_TEAMS_BY_CAT = {sub14:12, sub16:8, sub18:8};
+function serieTeamsFor(catId){ return SERIE_TEAMS_BY_CAT[catId] || 12; }
+
+// Formación en 7 líneas de profundidad (una por rol), igual que en Copero: separa bien cada
+// posición en la cancha en vez de amontonar varias en una sola fila.
+const POSITION_LINES = [
+  ['EI','DC','ED'], ['MCO'], ['MI','MC','MD'], ['MCD'], ['LI','LD'], ['DFC'], ['POR'],
+];
+const POSITION_NAMES = {
+  POR:'Portero', DFC:'Defensor Central', LI:'Lateral Izquierdo', LD:'Lateral Derecho',
+  MCD:'Mediocentro Defensivo', MI:'Interior Izquierdo', MC:'Mediocentro', MD:'Interior Derecho',
+  MCO:'Mediapunta', EI:'Extremo Izquierdo', ED:'Extremo Derecho', DC:'Delantero Centro'
+};
+const GOAL_FACTOR = {POR:.02,DFC:.08,LI:.14,LD:.14,MCD:.12,MI:.24,MC:.30,MD:.24,MCO:.42,EI:.52,ED:.52,DC:.72};
+const AST_FACTOR  = {POR:.01,DFC:.06,LI:.20,LD:.20,MCD:.18,MI:.30,MC:.34,MD:.30,MCO:.40,EI:.34,ED:.34,DC:.20};
+
+const ATTR_KEYS = ['definicion','velocidad','pase','resistencia','fisico','cabezazo','vision','liderazgo'];
+const ATTR_LABELS = {definicion:'Definición',velocidad:'Velocidad',pase:'Pase',resistencia:'Resistencia',fisico:'Físico',cabezazo:'Cabezazo',vision:'Visión',liderazgo:'Liderazgo'};
+const POSITION_WEIGHTS = {
+  POR:  {definicion:1,velocidad:2,pase:5,resistencia:4,fisico:6,cabezazo:2,vision:8,liderazgo:10},
+  DFC:  {definicion:2,velocidad:5,pase:6,resistencia:6,fisico:9,cabezazo:8,vision:5,liderazgo:4},
+  LI:   {definicion:3,velocidad:8,pase:7,resistencia:8,fisico:5,cabezazo:3,vision:5,liderazgo:2},
+  LD:   {definicion:3,velocidad:8,pase:7,resistencia:8,fisico:5,cabezazo:3,vision:5,liderazgo:2},
+  MCD:  {definicion:3,velocidad:5,pase:8,resistencia:8,fisico:6,cabezazo:4,vision:7,liderazgo:5},
+  MI:   {definicion:5,velocidad:7,pase:8,resistencia:7,fisico:4,cabezazo:2,vision:7,liderazgo:2},
+  MC:   {definicion:4,velocidad:5,pase:9,resistencia:8,fisico:4,cabezazo:2,vision:9,liderazgo:4},
+  MD:   {definicion:5,velocidad:7,pase:8,resistencia:7,fisico:4,cabezazo:2,vision:7,liderazgo:2},
+  MCO:  {definicion:7,velocidad:6,pase:8,resistencia:5,fisico:3,cabezazo:2,vision:9,liderazgo:2},
+  EI:   {definicion:8,velocidad:9,pase:5,resistencia:5,fisico:3,cabezazo:2,vision:4,liderazgo:1},
+  ED:   {definicion:8,velocidad:9,pase:5,resistencia:5,fisico:3,cabezazo:2,vision:4,liderazgo:1},
+  DC:   {definicion:10,velocidad:7,pase:4,resistencia:4,fisico:6,cabezazo:7,vision:3,liderazgo:1},
+};
+
+const COUNTRIES = [
+  {code:'URU', name:'Uruguay', flag:'🇺🇾'},
+  {code:'ARG', name:'Argentina', flag:'🇦🇷'},
+  {code:'BRA', name:'Brasil', flag:'🇧🇷'},
+  {code:'PAR', name:'Paraguay', flag:'🇵🇾'},
+  {code:'CHI', name:'Chile', flag:'🇨🇱'},
+  {code:'ESP', name:'España', flag:'🇪🇸'},
+];
+
+// Nómina de clubes reales de la Liga Universitaria (todas las categorías combinadas).
+// La fuerza histórica de cada club (más abajo, CLUB_POOL) se calcula de forma determinística
+// a partir del nombre, así que un mismo club siempre "vive" cerca de la misma Divisional entre
+// partidas, respetando su historia (un club de la G no aparece en la A de un salto).
+const CLUB_NAMES = [
+  'Old Christians Club','Urunday Universitario','Deportivo LS Universitario','Alemán Universitario',
+  'Poco Sitio Playa Verde','Crandon Universitario','Nacional Universitario','Club Jesús María',
+  'Old Woodlands Club','Club Seminario','Dep. de la C. Areteia Bimbully','E.L.F.','J.M.L.M.',
+  'Hebraica Universitario','Perry Sexta Universitario','La Blanqueada','Carrasco Lawn Tennis',
+  'Universitario Verones','Círculo de Tenis Montevideo','Deportivo Morón','Náutico Carrasco y Punta Gorda',
+  'Scuola Palermo','A.E.B.U.','Colegio Santa Elena','Old Brendans Club','The British School',
+  'Pelota al Medio Universitario','Tenis El Pinar','La Escalinata','Academia FRM','Arquitectura Jrs.',
+  'Old Boys Club','Seminario Universitario','Ceibos Club','HCA Universitario','Juan XXIII',
+  'Playa Honda Universitario','Elbio Fernández','Colegio y Liceo Inglés','Anglo School Universitario',
+  'Club Social Piedras Blancas','San Juan Bautista','San Pablo Universitario','Maturana Universitario',
+  'Carrasco Polo Club','San Agustín','Old Ivy','Isasa Universitario','Santa Elena Lagomar',
+  'Trouville Universitario','San José de la Providencia','Gomensoro','Deportivo Matadero',
+  'X-13 Universitario','Tacuarembó Universitario','Centro Gallego','Matecha',
+  'Sagrada Familia Universitario','Tape',
+  'Independiente','Club Universidad Católica','San Isidro Lomas Universitario','Olimar',
+  'Centro Cristóbal Colón','City Park','La 12 Universitaria','Numa Turcatti','Mossens','Yaguarí',
+  'Young Universitario','Club Atlético Limburgo','Salesianos de Las Piedras','Latino Fútbol Club',
+  'San Eugenio','Peñarol Universitario','Deportivo Mitre','CAFU','Body Factory','San Cono',
+  'Cervantes Universitario','Club Estudiantes Ingeniería','El Chorro Fútbol Club','Estudiantes Españoles',
+  'Sudamérica Universitario','Club Richard Anderson Universitario','UT Serviam','Deportivo Salto',
+  'Clara Jackson Universitario','Jean Piaget','Old Sampa Club','Danubio Fútbol Club',
+  'Wanderers','Maristas Deportivo',
+  'Club Fuerza Aérea','Madrugada F.C.','Resistencia',
+  'Estudiantil Salteño','Pallotti Universitario','Argos','Wolframio',
+  // Clubes confirmados por las fotos reales que faltaban en la nomina original:
+  'C.A.L.I.','Defensor Sporting','Bella Unión Universitario','Escuela Militar','Flores Universitario','Veterinaria Universitaria','Paysandú Universitario','América Universitario','Kennedy Universitario','La Cueva del Lobizón','Esparta Universitario','Escuela Naval','Nuestra Señora de Lourdes','Familiar Universitario','Varela Universitario','Deportivo Naval','Colegio San Isidro','Club Atlético Bella Vista','Colegio Salesiano de la Costa','River Plate Universitario','Apenas Universitario','Colegio y Liceo Santo Domingo','Mariscal Nasazzi','Pampero','Pinar Jrs.','Estudiantes del Plata','Escuela L.P.','Colegio Stella Maris','Unión Vecinal','D.F.C.'
+];
+
+/* ================= HELPERS ================= */
+const rand = (a,b)=> a + Math.random()*(b-a);
+const randi = (a,b)=> Math.round(rand(a,b));
+const clamp = (v,a,b)=> Math.max(a, Math.min(b,v));
+function shuffle(arr){ const a=[...arr]; for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]];} return a; }
+function categoryForAge(age){ return CATEGORIES.find(c=>age>=c.ageStart && age<=c.ageEnd) || null; }
+
+/* ---------- Identidad histórica de los clubes ---------- */
+// Hash determinístico: mismo nombre -> mismo número siempre (no cambia entre partidas ni recargas).
+function hashStr(str){ let h=0; for(let i=0;i<str.length;i++){ h=(h*31 + str.charCodeAt(i))>>>0; } return h; }
+
+// Antes existían variantes de color (equipos filiales) para algunas instituciones, pero se
+// sacaron de la nómina: ahora cada institución tiene un único club oficial (ej. "Old Christians
+// Club" a secas, sin "Azul"/"Verde"/"Blanco"). Esta lógica de familias queda por compatibilidad,
+// pero ya no hay ningún caso real de variantes en CLUB_NAMES.
+const VARIANT_TOKENS = new Set(['Club','Azul','Verde','Blanco','Blanca','Naranja','Rojo','Roja','Rosado','Celeste','Amarillo','Amarilla']);
+function clubCore(name){
+  const words = name.split(' ');
+  while(words.length>1 && VARIANT_TOKENS.has(words[words.length-1])) words.pop();
+  return words.join(' ');
+}
+
+// Fuerza histórica en pirámide: pocos clubes "grandes" (tier 0, cerca de la A) y muchos más humildes
+// (tiers altos, cerca de la G). Así se respeta que un club chico no aparezca de golpe arriba de todo.
+const TIER_WEIGHTS = [3,6,10,16,22,24,19]; // tier 0..6
+const TIER_CUM = (()=>{ let acc=0; return TIER_WEIGHTS.map(w=>(acc+=w)); })();
+const TIER_TOTAL = TIER_CUM[TIER_CUM.length-1];
+function tierFromHash(h){
+  const x = h % TIER_TOTAL;
+  for(let i=0;i<TIER_CUM.length;i++){ if(x<TIER_CUM[i]) return i; }
+  return TIER_CUM.length-1;
+}
+
+const _familyMembers = {};
+CLUB_NAMES.forEach(name=>{ const core=clubCore(name); (_familyMembers[core]=_familyMembers[core]||[]).push(name); });
+const _familyHomeTier = {};
+Object.keys(_familyMembers).forEach(core=>{ _familyHomeTier[core] = tierFromHash(hashStr(core)); });
+
+// Datos reales confirmados a partir de las tablas de divisionales de la Liga (Mayores A-G da la escala
+// exacta 0..6; Reserva y Sub20, que tienen 3 divisionales cada una, se mapean a esa misma escala de a
+// tres saltos). Los clubes que no aparecen acá siguen usando la fuerza histórica estimada por hash.
+const REAL_TIER_OVERRIDE = {"Old Woodlands Club": 0, "Carrasco Polo Club": 0, "Tenis El Pinar": 0, "Urunday Universitario": 0, "Club Seminario": 0, "Playa Honda Universitario": 0, "E.L.F.": 0, "Hebraica Universitario": 0, "Santa Elena Lagomar": 0, "Carrasco Lawn Tennis": 0, "Tape": 0, "Nacional Universitario": 0, "Old Boys Club": 0, "Old Christians Club": 0, "Juan XXIII": 0, "Old Ivy": 0, "Elbio Fernández": 1, "Sagrada Familia Universitario": 1, "Ceibos Club": 1, "Old Brendans Club": 1, "Alemán Universitario": 1, "Náutico Carrasco y Punta Gorda": 1, "San Isidro Lomas Universitario": 1, "J.M.L.M.": 1, "San Juan Bautista": 1, "Independiente": 1, "Club Jesús María": 1, "Olimar": 1, "Círculo de Tenis Montevideo": 1, "Club Universidad Católica": 1, "Centro Cristóbal Colón": 1, "City Park": 1, "Maturana Universitario": 2, "Crandon Universitario": 2, "Wolframio": 2, "Colegio y Liceo Inglés": 2, "La Blanqueada": 2, "Colegio Santa Elena": 2, "Danubio Fútbol Club": 2, "Isasa Universitario": 2, "San Pablo Universitario": 2, "Poco Sitio Playa Verde": 2, "C.A.L.I.": 2, "Club Social Piedras Blancas": 2, "Defensor Sporting": 2, "Wanderers": 2, "A.E.B.U.": 2, "Arquitectura Jrs.": 2, "Deportivo LS Universitario": 3, "La 12 Universitaria": 3, "Numa Turcatti": 3, "Mossens": 3, "Yaguarí": 3, "Young Universitario": 3, "Club Atlético Limburgo": 3, "Deportivo Morón": 3, "Salesianos de Las Piedras": 3, "Perry Sexta Universitario": 3, "Latino Fútbol Club": 3, "Scuola Palermo": 3, "Universitario Verones": 3, "Trouville Universitario": 3, "San Eugenio": 3, "Peñarol Universitario": 3, "Deportivo Mitre": 4, "San Agustín": 4, "CAFU": 4, "Body Factory": 4, "San Cono": 4, "Cervantes Universitario": 4, "Club Estudiantes Ingeniería": 4, "El Chorro Fútbol Club": 4, "Estudiantes Españoles": 4, "Sudamérica Universitario": 4, "Club Richard Anderson Universitario": 4, "UT Serviam": 4, "Deportivo Salto": 4, "Clara Jackson Universitario": 4, "Jean Piaget": 4, "Old Sampa Club": 4, "Dep. de la C. Areteia Bimbully": 5, "Bella Unión Universitario": 5, "Escuela Militar": 5, "Flores Universitario": 5, "Veterinaria Universitaria": 5, "San José de la Providencia": 5, "Paysandú Universitario": 5, "América Universitario": 5, "Pallotti Universitario": 5, "Tacuarembó Universitario": 5, "Kennedy Universitario": 5, "Anglo School Universitario": 5, "La Cueva del Lobizón": 5, "Club Fuerza Aérea": 5, "Esparta Universitario": 5, "Escuela Naval": 5, "Nuestra Señora de Lourdes": 6, "Familiar Universitario": 6, "Maristas Deportivo": 6, "Varela Universitario": 6, "Deportivo Naval": 6, "Colegio San Isidro": 6, "Club Atlético Bella Vista": 6, "Colegio Salesiano de la Costa": 6, "Gomensoro": 6, "River Plate Universitario": 6, "Apenas Universitario": 6, "Colegio y Liceo Santo Domingo": 6, "Centro Gallego": 6, "Mariscal Nasazzi": 6, "Pampero": 6, "Seminario Universitario": 6, "Deportivo Matadero": 0, "X-13 Universitario": 0, "Matecha": 0};
+// Series juveniles reales (Sub18/16/14): a qué grupo/serie pertenece cada club, si se sabe.
+const REAL_SERIES_GROUP = {"sub18": {"Old Christians Club": 0, "Deportivo LS Universitario": 0, "Alemán Universitario": 0, "Urunday Universitario": 0, "Club Jesús María": 0, "Crandon Universitario": 0, "Nacional Universitario": 0, "Poco Sitio Playa Verde": 0, "Club Seminario": 1, "E.L.F.": 1, "Old Woodlands Club": 1, "Perry Sexta Universitario": 1, "Dep. de la C. Areteia Bimbully": 1, "La Blanqueada": 1, "Carrasco Lawn Tennis": 2, "Deportivo Morón": 2, "Colegio Santa Elena": 2, "Círculo de Tenis Montevideo": 2, "Universitario Verones": 2, "Náutico Carrasco y Punta Gorda": 2, "A.E.B.U.": 2, "Scuola Palermo": 2, "Old Boys Club": 3, "Pelota al Medio Universitario": 3, "Old Brendans Club": 3, "Tenis El Pinar": 3, "Seminario Universitario": 3, "La Escalinata": 3, "Arquitectura Jrs.": 3, "Academia FRM": 3, "Ceibos Club": 4, "HCA Universitario": 4, "Juan XXIII": 4, "Playa Honda Universitario": 4, "Elbio Fernández": 4, "Colegio y Liceo Inglés": 4, "Anglo School Universitario": 4, "Club Social Piedras Blancas": 4}, "sub16": {"Old Christians Club": 0, "Urunday Universitario": 0, "Deportivo LS Universitario": 0, "Alemán Universitario": 0, "Poco Sitio Playa Verde": 0, "Crandon Universitario": 0, "Nacional Universitario": 0, "Club Jesús María": 0, "Old Woodlands Club": 1, "Club Seminario": 1, "Dep. de la C. Areteia Bimbully": 1, "E.L.F.": 1, "J.M.L.M.": 1, "Hebraica Universitario": 1, "Perry Sexta Universitario": 1, "La Blanqueada": 1, "Carrasco Lawn Tennis": 2, "Universitario Verones": 2, "Círculo de Tenis Montevideo": 2, "Deportivo Morón": 2, "Náutico Carrasco y Punta Gorda": 2, "Scuola Palermo": 2, "A.E.B.U.": 2, "Colegio Santa Elena": 2, "Old Brendans Club": 3, "The British School": 3, "Pelota al Medio Universitario": 3, "Tenis El Pinar": 3, "La Escalinata": 3, "Seminario Universitario": 3, "Academia FRM": 3, "Arquitectura Jrs.": 3}, "sub14": {"Carrasco Lawn Tennis": 0, "Carrasco Polo Club": 0, "Urunday Universitario": 0, "Scuola Palermo": 0, "Club Seminario": 0, "Pinar Jrs.": 0, "Náutico Carrasco y Punta Gorda": 0, "Estudiantes del Plata": 0, "La Blanqueada": 0, "Deportivo Morón": 0, "Círculo de Tenis Montevideo": 0, "Escuela L.P.": 0, "Nacional Universitario": 1, "Colegio Stella Maris": 1, "Deportivo LS Universitario": 1, "Unión Vecinal": 1, "Academia FRM": 1, "The British School": 1, "Crandon Universitario": 1, "Old Ivy": 1, "La Escalinata": 1, "Old Sampa Club": 1, "San Pablo Universitario": 1, "D.F.C.": 1}};
+
+// CLUB_POOL: cada club con su nombre, su "familia" (institución madre) y su fuerza histórica fija (0=A..6=G).
+const CLUB_POOL = CLUB_NAMES.map(name=>{
+  const core = clubCore(name);
+  const siblings = _familyMembers[core];
+  const isParent = siblings[0]===name; // el listado primero de la familia es el equipo principal
+  const baseTier = _familyHomeTier[core];
+  // Los equipos filiales suelen jugar igual o un poco más flojo que el plantel principal.
+  const estimatedTier = isParent ? baseTier : clamp(baseTier + (hashStr(name)%3), 0, 6);
+  const tier = REAL_TIER_OVERRIDE[name]!==undefined ? REAL_TIER_OVERRIDE[name] : estimatedTier;
+  return {name, family:core, isParent, tier, siblingCount:siblings.length};
+});
+// Letra de serie real para las formativas (Sub14/16/18), si el club aparece en los datos confirmados.
+function realSerieLetter(catId, clubName){
+  const g = REAL_SERIES_GROUP[catId] && REAL_SERIES_GROUP[catId][clubName];
+  return (g!==undefined) ? DIV_LETTERS[g] : null;
+}
+const CLUB_BY_NAME = {}; CLUB_POOL.forEach(c=> CLUB_BY_NAME[c.name]=c);
+function clubOf(name){ return CLUB_BY_NAME[name] || {name, family:name, isParent:true, tier:3, siblingCount:1}; }
+function familyParentOf(name){
+  const c = clubOf(name);
+  return CLUB_POOL.find(x=>x.family===c.family && x.isParent) || c;
+}
+// Convierte la fuerza histórica (escala 0..6, "A..G") a la cantidad real de divisiones de la categoría.
+function tierInCategory(tier, divisions){ return clamp(Math.round(tier*(divisions-1)/6), 0, divisions-1); }
+function baseStrengthAdult(tier){ return 78 - tier*7; }
+// Antes en 66: el OVR inicial de un chico de 13 años (~46) quedaba tan por debajo del promedio de
+// la serie que terminaba siempre en Copa de Bronce. Se baja a 55 para que haya variedad real desde
+// el arranque y una progresión creíble a medida que el jugador crece.
+const BASE_STRENGTH_JUVENIL = 55;
+function marketValue(ovr){
+  const raw = Math.round(Math.pow(ovr,3)/900);
+  if(raw>=1000) return '€'+(raw/1000).toFixed(1)+'M';
+  return '€'+Math.max(50,raw)+'K';
+}
+
+/* ---------- Atributos ---------- */
+function initAttrs(pos){
+  const attrs = {};
+  ATTR_KEYS.forEach(k=> attrs[k] = clamp(42 + randi(-5,5), 25, 60));
+  const w = POSITION_WEIGHTS[pos];
+  const top2 = Object.entries(w).sort((a,b)=>b[1]-a[1]).slice(0,2).map(e=>e[0]);
+  top2.forEach(k=> attrs[k]=clamp(attrs[k]+10,25,70));
+  return attrs;
+}
+function computeOVR(attrs,pos){
+  const w = POSITION_WEIGHTS[pos];
+  let sum=0, wsum=0;
+  Object.keys(w).forEach(k=>{ sum+=attrs[k]*w[k]; wsum+=w[k]; });
+  return Math.round(sum/wsum);
+}
+function growAttributes(p, extra){
+  extra = extra || {};
+  const age = p.edad;
+  const physKeys=['velocidad','fisico','resistencia','cabezazo'];
+  const techKeys=['definicion','pase'];
+  const mentKeys=['vision','liderazgo'];
+  let physDelta, techDelta, mentDelta;
+  if(age<=19){ physDelta=rand(2,5); techDelta=rand(2,5); mentDelta=rand(0,2); }
+  else if(age<=25){ physDelta=rand(1,4); techDelta=rand(1,3); mentDelta=rand(0,2); }
+  else if(age<=29){ physDelta=rand(-1,2); techDelta=rand(0,2); mentDelta=rand(1,3); }
+  else if(age<=34){ physDelta=rand(-3,0); techDelta=rand(-1,1); mentDelta=rand(1,3); }
+  else if(age<=44){ physDelta=rand(-4,-1); techDelta=rand(-2,0); mentDelta=rand(0,2); }
+  else { physDelta=rand(-5,-2); techDelta=rand(-3,-1); mentDelta=rand(-1,1); }
+  physKeys.forEach(k=> p.attrs[k]=clamp(p.attrs[k]+physDelta+rand(-1,1)+(extra[k]||0),20,99));
+  techKeys.forEach(k=> p.attrs[k]=clamp(p.attrs[k]+techDelta+rand(-1,1)+(extra[k]||0),20,99));
+  mentKeys.forEach(k=> p.attrs[k]=clamp(p.attrs[k]+mentDelta+rand(-1,1)+(extra[k]||0),20,99));
+  p.ovr = computeOVR(p.attrs, p.posicion);
+  p.peakOvr = Math.max(p.peakOvr, p.ovr);
+}
+
+/* ================= ESTADO ================= */
+let state = null;
+function newState(){
+  return {
+    screen:'home',
+    player:{
+      apellido:'', numero:10, pierna:'Derecha', pais:'URU', posicion:'MC',
+      edad:13, attrs:null, ovr:50, peakOvr:50,
+      club:'', clubDivisionTier:0, serieLetter:'A', lastCategoryId:null,
+      pj:0, gls:0, ast:0,
+      clubsPlayed:[], history:[], trophies:[], achievements:[],
+      milestones:{graduated:false, employed:false, married:false, child:false},
+      career:{ligaTitles:0, subcampeonatos:0, honorTitles:0, copaOro:0, copaPlata:0, copaBronce:0, copaConfraternidad:0, ascensos:0, descensos:0, mvps:0, goleadores:0, amarillas:0, rojas:0}
+    },
+    pendingEvent:null,
+    lastResult:null,
+    showDetails:false,
+  };
+}
+
+/* ================= SIMULACIÓN ================= */
+// Pequeño empujón de "protagonista": sube apenas la probabilidad de salir campeón (liga, copas
+// y honor). Es un ajuste chico a propósito: no debe hacer que siempre ganes, solo mejorar un poco
+// tus chances frente a un rival de nivel parejo. Para hacerlo más notorio, subir estos números;
+// para volver a como estaba antes, ponerlos en 0.
+const CHAMPION_LUCK_RATING = 0.5;   // puntos extra de rating en las tablas de posiciones
+const CHAMPION_LUCK_CHANCE = 0.015; // extra de probabilidad (0 a 1) en llaves de Copa/Honor
+function simulateStandingsJuvenil(ovr, n){
+  const arr=[];
+  for(let i=0;i<n-1;i++) arr.push({p:false, r: BASE_STRENGTH_JUVENIL + rand(-16,16)});
+  arr.push({p:true, r: ovr + CHAMPION_LUCK_RATING + rand(-8,8)});
+  arr.sort((a,b)=>b.r-a.r);
+  return arr.findIndex(t=>t.p)+1;
+}
+function simulateStandingsAdulta(tier, ovr){
+  const n=16;
+  const base = baseStrengthAdult(tier);
+  const arr=[];
+  for(let i=0;i<n-1;i++) arr.push({p:false, r: base + rand(-14,14)});
+  arr.push({p:true, r: ovr*0.9 + CHAMPION_LUCK_RATING + rand(-8,8)});
+  arr.sort((a,b)=>b.r-a.r);
+  return arr.findIndex(t=>t.p)+1;
+}
+function simulateBracket(rounds, winChance){
+  let advanced=0;
+  for(let r=0;r<rounds;r++){ if(Math.random()<winChance) advanced++; else break; }
+  return {advanced, rounds, champ: advanced===rounds};
+}
+function simulateHonor(ovr, refStrength){
+  const chance = clamp(0.42 + (ovr-refStrength)/120 + CHAMPION_LUCK_CHANCE, .1, .7);
+  return simulateBracket(4, chance);
+}
+// Ascenso/descenso: siempre un solo escalón por temporada (nunca de la G a la A de una).
+// Ascenso/descenso siempre de un solo escalón por temporada (nunca de la G a la A de una).
+// En Divisionales de 16 equipos: suben los primeros 4, bajan los últimos 4.
+function updateTierAdulta(cat, tier, posFinal){
+  let newTier=tier, note=null, dir=null;
+  if(posFinal<=4 && tier>0){ newTier=tier-1; note='Ascenso a Divisional '+DIV_LETTERS[newTier]; dir='up'; }
+  else if(posFinal>=cat.teams-3 && tier<cat.divisions-1){ newTier=tier+1; note='Descenso a Divisional '+DIV_LETTERS[newTier]; dir='down'; }
+  return {newTier, note, dir};
+}
+// La divisional inicial se ancla en la fuerza histórica del club (no solo en el nivel del jugador),
+// con un ajuste de a lo sumo un escalón si el rendimiento es muy superior o muy inferior al del club.
+function assignInitialAdultTier(cat, ovr, clubName){
+  const home = tierInCategory(clubOf(clubName).tier, cat.divisions);
+  const ref = baseStrengthAdult(home);
+  let adj = 0;
+  if(ovr >= ref+14) adj = -1;
+  else if(ovr <= ref-14) adj = 1;
+  return clamp(home+adj, 0, cat.divisions-1);
+}
+
+/* ---------- Eventos (con vida fuera de la cancha desde los 24) ----------
+   Nota: se sacó el evento del "ojeador" que ofrecía saltar de categoría/divisional a pedido.
+   Los saltos ya se dan por defecto según la edad (Sub20 a los 19-20, Reserva a los 21, y el
+   pase a Mayores -narrado como llamado del DT- a los 22), no hace falta un evento aparte. */
+const EVENT_EXAMS = { text:'Época de parciales en la facultad: los entrenamientos se complican.',
+  options:[
+    {label:'Priorizar el fútbol', apply:(p)=>{ p._attrDelta={resistencia:3,fisico:2}; p._eventNote='Le metiste toda la ficha a la cancha.'; }},
+    {label:'Priorizar el estudio', apply:(p)=>{ p._attrDelta={resistencia:-2,liderazgo:2}; p._eventNote='Cuidaste tus estudios; el físico resintió un poco pero maduraste como cabeza del plantel.'; }},
+  ]};
+const EVENT_INJURY = { text:'Una molestia física te tiene en duda para lo que viene.',
+  options:[
+    {label:'Forzar la vuelta', apply:(p)=>{ if(Math.random()<0.4){ p._attrDelta={fisico:-6,resistencia:-4}; p._eventNote='Forzaste y la molestia empeoró.'; } else { p._attrDelta={liderazgo:1}; p._eventNote='Forzaste y no pasó nada grave.'; } }},
+    {label:'Guardarte y recuperarte bien', apply:(p)=>{ p._eventNote='Te cuidaste y llegaste entero a la próxima temporada.'; }},
+  ]};
+const EVENT_CAPTAIN = { text:'La comisión directiva te ofrece la cinta de capitán.',
+  options:[
+    {label:'Aceptar el liderazgo', apply:(p)=>{ p._attrDelta={liderazgo:5}; p._eventNote='Ser capitán te hizo madurar como jugador.'; }},
+    {label:'Declinar, preferís enfocarte en tu juego', apply:(p)=>{ p._attrDelta={vision:2}; p._eventNote='Preferiste mantener el foco solo en lo tuyo.'; }},
+  ]};
+const EVENT_LOCKERROOM = { text:'Sos una de las voces más queridas del vestuario.',
+  options:[
+    {label:'Ser la voz del grupo', apply:(p)=>{ p._attrDelta={liderazgo:4}; p._eventNote='Te ganaste el respeto de todo el plantel.'; }},
+    {label:'Predicar con el ejemplo en la cancha', apply:(p)=>{ p._attrDelta={definicion:2,velocidad:2}; p._eventNote='Elegiste hablar con el juego.'; }},
+  ]};
+const EVENT_COACH_FIGHT = { text:'Tuviste un cruce fuerte con el entrenador por minutos de juego.',
+  options:[
+    {label:'Plantarte y reclamar tu lugar', apply:(p)=>{ if(Math.random()<0.5){ p._attrDelta={liderazgo:3}; p._eventNote='Te ganaste un lugar fijo en el equipo.'; } else { p._attrDelta={liderazgo:-2}; p._eventNote='La cosa quedó tensa con el cuerpo técnico.'; } }},
+    {label:'Bajar la cabeza y seguir entrenando', apply:(p)=>{ p._eventNote='Preferiste no generar más ruido.'; }},
+  ]};
+const EVENT_GRADUATION = { text:'Después de años de estudio, te recibiste en la facultad.',
+  options:[
+    {label:'Festejar a lo grande con el plantel', apply:(p)=>{ p.milestones.graduated=true; p._attrDelta={liderazgo:2}; p._eventNote='Te recibiste y lo festejaste con todos.'; }},
+    {label:'Celebrarlo en familia, bajo perfil', apply:(p)=>{ p.milestones.graduated=true; p._attrDelta={vision:2}; p._eventNote='Te recibiste: un antes y un después fuera de la cancha.'; }},
+  ]};
+const EVENT_MARRIAGE = { text:'Te casaste.',
+  options:[
+    {label:'Luna de miel larga', apply:(p)=>{ p.milestones.married=true; p._attrDelta={resistencia:-2,liderazgo:2}; p._eventNote='Te tomaste un buen descanso antes de volver a full.'; }},
+    {label:'Volver rápido a los entrenamientos', apply:(p)=>{ p.milestones.married=true; p._attrDelta={liderazgo:1}; p._eventNote='Volviste rápido a la actividad, con la cabeza más tranquila.'; }},
+  ]};
+const EVENT_CHILD = { text:'Fuiste papá/mamá.',
+  options:[
+    {label:'Priorizar la familia estas semanas', apply:(p)=>{ p.milestones.child=true; p._attrDelta={resistencia:-2}; p._eventNote='Bajaste un cambio para estar presente en casa.'; }},
+    {label:'Seguir a pleno con los entrenamientos', apply:(p)=>{ p.milestones.child=true; p._attrDelta={liderazgo:2}; p._eventNote='Encontraste el equilibrio entre la casa y la cancha.'; }},
+  ]};
+const EVENT_JOB = { text:'Te salió una oportunidad laboral estable, fuera del fútbol.', options:[
+    {label:'Tomar el trabajo y acomodar los horarios de entrenamiento', apply:(p)=>{ p.milestones.employed=true; p._attrDelta={resistencia:-1,liderazgo:2}; p._eventNote='Conseguiste trabajo: ahora repartís el día entre la oficina y la cancha.'; }},
+    {label:'Rechazarlo por ahora y enfocarte solo en el fútbol', apply:(p)=>{ p._attrDelta={fisico:1}; p._eventNote='Preferiste esperar y seguir a pleno con lo deportivo.'; }},
+  ]};
+
+// A partir de los 24 años el estudio deja de aparecer y gana peso la vida laboral y personal
+// (trabajo, casamiento, hijos, vínculo con el DT y el plantel). Los eventos son ocasionales:
+// solo hay chance de que aparezca alguno un 40% de las temporadas.
+function getEventPool(p){
+  const pool = [EVENT_INJURY, EVENT_CAPTAIN, EVENT_LOCKERROOM, EVENT_COACH_FIGHT];
+  if(p.edad<24) pool.push(EVENT_EXAMS);
+  if(p.edad>=23 && !p.milestones.graduated) pool.push(EVENT_GRADUATION);
+  if(p.edad>=24 && !p.milestones.employed) pool.push(EVENT_JOB);
+  if(p.edad>=26 && !p.milestones.married) pool.push(EVENT_MARRIAGE);
+  if(p.edad>=28 && p.milestones.married && !p.milestones.child) pool.push(EVENT_CHILD);
+  return pool;
+}
+
+/* ================= ACCIONES ================= */
+// El contador global se incrementa acá: es el único lugar donde se llama incrementCareerCounter(),
+// justo cuando la persona hace click en "Comenzar carrera". Recargar la página NUNCA lo incrementa
+// (loadCareerCount() solo lee el valor, no lo modifica).
+function startCreate(){
+  incrementCareerCounter();
+  state.screen='create'; render();
+}
+
+function goToOffers(){
+  const p = state.player;
+  if(!p.apellido.trim()) p.apellido='JUGADOR';
+  p.attrs = initAttrs(p.posicion);
+  p.ovr = computeOVR(p.attrs, p.posicion);
+  p.peakOvr = p.ovr;
+  state.offers = shuffle(CLUB_POOL).slice(0,3).map(c=>c.name);
+  state.screen='offers'; render();
+}
+function pickClub(name){
+  const p = state.player;
+  p.club = name; p.clubsPlayed.push(name);
+  p.lastCategoryId='sub14'; p.serieLetter = realSerieLetter('sub14', p.club) || DIV_LETTERS[randi(0,3)];
+  state.screen='season'; render();
+}
+
+function currentCategory(){ return categoryForAge(state.player.edad); }
+
+function playSeason(){
+  // Cada click real en "Jugar temporada" suma 1 al contador global de partidas jugadas.
+  incrementSeasonsCounter();
+  const p = state.player;
+  const cat = currentCategory();
+  let posFinal, tierLabel, cupResult=null, honorResult=null, tierUpdate={note:null,dir:null,newTier:p.clubDivisionTier};
+
+  if(cat.type==='juvenil'){
+    // Sub 14, Sub 16 y Sub 18 no tienen Campeonato de Honor (eso arranca recién en Sub 20).
+    // Sus únicos torneos son estas cuatro copas, según la posición final en la serie.
+    const serieN = serieTeamsFor(cat.id);
+    posFinal = simulateStandingsJuvenil(p.ovr, serieN);
+    tierLabel = 'Serie '+p.serieLetter;
+    const quarter = Math.ceil(serieN/4);
+    let label, diffAdj;
+    if(posFinal<=quarter){label='Copa de Oro'; diffAdj=0;}
+    else if(posFinal<=quarter*2){label='Copa de Plata'; diffAdj=-6;}
+    else if(posFinal<=quarter*3){label='Copa de Bronce'; diffAdj=-12;}
+    else {label='Copa de Confraternidad'; diffAdj=-18;}
+    const chance = clamp(0.5 + (p.ovr-(BASE_STRENGTH_JUVENIL+diffAdj))/120 + CHAMPION_LUCK_CHANCE,.15,.85);
+    const br = simulateBracket(3, chance);
+    cupResult = {label, champ:br.champ};
+  } else {
+    const tier = clamp(p.clubDivisionTier,0,cat.divisions-1);
+    posFinal = simulateStandingsAdulta(tier, p.ovr);
+    tierLabel = cat.divisions<=1 ? 'Categoría única' : ('Divisional '+DIV_LETTERS[tier]);
+    tierUpdate = updateTierAdulta(cat, tier, posFinal);
+    if(posFinal<=4){ honorResult = simulateHonor(p.ovr, baseStrengthAdult(tier)); }
+  }
+
+  // En las Divisionales de 16 equipos se juegan 22 fechas por temporada; en las Series juveniles,
+  // todos contra todos entre los equipos de la serie.
+  const pj = cat.type==='adulta' ? randi(20,22) : Math.max(6, Math.round((serieTeamsFor(cat.id)-1)*rand(.8,1)));
+  const gf = GOAL_FACTOR[p.posicion]||.1, af = AST_FACTOR[p.posicion]||.1;
+  const gls = Math.max(0, Math.round(pj*gf*(p.ovr/70)*rand(.6,1.3)));
+  const ast = Math.max(0, Math.round(pj*af*(p.ovr/70)*rand(.6,1.3)));
+  const amarillas = randi(0, Math.round(pj*0.28));
+  const rojas = Math.random()<0.12 ? 1 : 0;
+  const mvp = posFinal<=2 && p.ovr > (cat.type==='juvenil'?BASE_STRENGTH_JUVENIL:baseStrengthAdult(p.clubDivisionTier))+10 && Math.random()<0.3;
+  // Balón de goleador: se lo lleva quien tuvo una temporada goleadora de verdad (0.5+ goles por
+  // partido), pero no es automático — siempre hay otros candidatos peleándolo en la categoría.
+  const golRate = pj>0 ? gls/pj : 0;
+  const isTopScorer = golRate >= 0.5 && Math.random() < 0.25;
+
+  const trophies=[]; const achievements=[];
+  if(posFinal===1){ trophies.push('Campeón de Liga — '+cat.label+' ('+p.edad+' años)'); p.career.ligaTitles++; }
+  if(posFinal===2){ achievements.push('Subcampeón — '+cat.label+' ('+p.edad+' años)'); p.career.subcampeonatos++; }
+  if(cupResult && cupResult.champ){
+    trophies.push('Campeón '+cupResult.label+' — '+cat.label+' ('+p.edad+' años)');
+    if(cupResult.label==='Copa de Oro') p.career.copaOro++;
+    else if(cupResult.label==='Copa de Plata') p.career.copaPlata++;
+    else if(cupResult.label==='Copa de Bronce') p.career.copaBronce++;
+    else p.career.copaConfraternidad++;
+  }
+  if(honorResult && honorResult.champ){ trophies.push('Campeón de Honor — '+cat.label+' ('+p.edad+' años)'); p.career.honorTitles++; }
+  if(tierUpdate.dir==='up') p.career.ascensos++;
+  if(tierUpdate.dir==='down') p.career.descensos++;
+  if(mvp){ achievements.push('MVP — '+cat.label+' ('+p.edad+' años)'); p.career.mvps++; }
+  if(isTopScorer){ trophies.push('Balón de Goleador — '+cat.label+' ('+p.edad+' años)'); p.career.goleadores++; }
+  p.career.amarillas += amarillas; p.career.rojas += rojas;
+
+  const histRow = {
+    edad:p.edad, categoria:cat.label, club:p.club, tierLabel, posFinal, pj, gls, ast,
+    ovr:Math.round(p.ovr), cupLabel: cupResult?cupResult.label:null, cupChamp: cupResult?cupResult.champ:false,
+    honorQualified: !!honorResult, honorChamp: honorResult?honorResult.champ:false,
+    tierNote: tierUpdate.note, tierDir: tierUpdate.dir, mvp, topScorer: isTopScorer
+  };
+  p.pj+=pj; p.gls+=gls; p.ast+=ast;
+  p.history.push(histRow);
+  trophies.forEach(t=>p.trophies.push(t));
+  achievements.forEach(a=>p.achievements.push(a));
+  if(cat.type==='adulta') p.clubDivisionTier = tierUpdate.newTier;
+
+  state.lastResult = histRow;
+  state.screen='result';
+  render();
+}
+
+function advanceAfterResult(){
+  if(Math.random()<0.4){
+    const pool = getEventPool(state.player);
+    state.pendingEvent = pool[Math.floor(Math.random()*pool.length)];
+    state.screen='event'; render();
+  } else finishAdvance();
+}
+function resolveEvent(option){
+  const p = state.player;
+  p._attrDelta = {};
+  p._eventNote = '';
+  option.apply(p);
+  state.lastEventNote = p._eventNote;
+  finishAdvance(p._attrDelta);
+}
+function finishAdvance(extraAttrDelta){
+  const p = state.player;
+  growAttributes(p, extraAttrDelta||{});
+  p.edad += 1;
+  const nextCat = categoryForAge(p.edad);
+  if(!nextCat){ state.screen='retired'; render(); return; }
+  // Todos los saltos de categoría se dan por defecto según la edad (Sub14→Sub16→Sub18→Sub20→Reserva).
+  // La única excepción es el pase de Reserva a Mayores: ese salto no es automático "de nombre" nomás,
+  // se narra como el llamado del DT de Primera para que el jugador lo sienta como un logro.
+  const isCallUpToMayores = nextCat.id==='mayores' && p.lastCategoryId==='reserva';
+  if(nextCat.id !== p.lastCategoryId){
+    if(nextCat.type==='juvenil'){ p.serieLetter = realSerieLetter(nextCat.id, p.club) || DIV_LETTERS[randi(0,3)]; }
+    else {
+      // Al entrar a una nueva categoría adulta (Sub20, Reserva, Mayores, Pre Senior, Más 40)
+      // la divisional de arranque siempre se recalcula desde la fuerza histórica del club, nunca se
+      // arrastra el índice tal cual — así un club chico no "hereda" la A solo por haber llegado
+      // arriba en una categoría con menos divisionales.
+      p.clubDivisionTier = assignInitialAdultTier(nextCat, p.ovr, p.club);
+    }
+    p.lastCategoryId = nextCat.id;
+  }
+  state.showDetails=false;
+  state.screen = isCallUpToMayores ? 'callup' : 'season';
+  render();
+}
+function continueFromCallup(){ state.screen='season'; render(); }
+function retireNow(){ state.screen='retired'; render(); }
+function toggleDetails(){ state.showDetails = !state.showDetails; render(); }
+
+// Mercado de pases realista:
+// - Casi siempre ofertas de clubes de nivel similar o vecino (nunca saltos de más de 2-3 escalones).
+// - Si jugás en la G, primero llegan ofertas de F/E/D; a C/B/A solo con muy buen rendimiento.
+// - Si ya jugás en la A, no vas a recibir solo ofertas de categorías muy inferiores.
+// - (Ya no hay clubes filiales con variantes de color en la nómina; esta rama queda inactiva.)
+function weightedDelta(currentTier, maxTier, ovr, ref){
+  const opts = [{d:0, w:3}];
+  if(currentTier>0) opts.push({d:-1, w:4});
+  if(currentTier<maxTier) opts.push({d:1, w:3});
+  if(currentTier>=2 && ovr>=ref+16) opts.push({d:-2, w:1.2});
+  if(currentTier>=3 && ovr>=ref+20) opts.push({d:-3, w:0.6});
+  const total = opts.reduce((s,o)=>s+o.w,0);
+  let r = Math.random()*total;
+  for(const o of opts){ if(r<o.w) return o.d; r-=o.w; }
+  return 0;
+}
+function findClubForTier(targetTier, cat, excludeNames){
+  for(let radius=0; radius<=cat.divisions; radius++){
+    const candidates = CLUB_POOL.filter(c=>{
+      const t = tierInCategory(c.tier, cat.divisions);
+      return Math.abs(t-targetTier)===radius && !excludeNames.includes(c.name);
+    });
+    if(candidates.length) return shuffle(candidates)[0];
+  }
+  return null;
+}
+function openTransferMarket(){
+  const p = state.player;
+  const cat = currentCategory();
+  const used = [p.club];
+  const offers = [];
+  const myClub = clubOf(p.club);
+
+  // Llamado del club principal si jugás en una filial.
+  if(!myClub.isParent && Math.random()<0.55){
+    const parent = familyParentOf(p.club);
+    if(parent.name!==p.club){
+      const parentTier = cat.type==='adulta' ? tierInCategory(parent.tier, cat.divisions) : null;
+      offers.push({name:parent.name, tier:parentTier, familyCall:true});
+      used.push(parent.name);
+    }
+  }
+
+  if(cat.type==='adulta'){
+    const maxTier = cat.divisions-1;
+    const ref = baseStrengthAdult(p.clubDivisionTier);
+    let guard = 0;
+    while(offers.length<2 && guard<20){
+      guard++;
+      const delta = weightedDelta(p.clubDivisionTier, maxTier, p.ovr, ref);
+      const targetTier = clamp(p.clubDivisionTier+delta, 0, maxTier);
+      const club = findClubForTier(targetTier, cat, used);
+      if(!club) break;
+      offers.push({name:club.name, tier:targetTier, familyCall:false});
+      used.push(club.name);
+    }
+  } else {
+    const rest = shuffle(CLUB_POOL.filter(c=>!used.includes(c.name)));
+    while(offers.length<2 && rest.length){ offers.push({name:rest.pop().name, tier:null, familyCall:false}); }
+  }
+
+  state.transferOffers = offers;
+  state.screen='transfer'; render();
+}
+function pickTransfer(offer){
+  const p = state.player;
+  p.club = offer.name;
+  if(!p.clubsPlayed.includes(offer.name)) p.clubsPlayed.push(offer.name);
+  if(offer.tier!==null && offer.tier!==undefined) p.clubDivisionTier = offer.tier;
+  state.screen='season'; render();
+}
+function cancelTransfer(){ state.screen='season'; render(); }
+function restart(){ state=newState(); render(); }
+
+/* ---------- Trofeo propio (inspirado en el trofeo real de la LUD: espiral dorada sobre pedestal) ---------- */
+const TROPHY_PALETTE = {
+  liga:   {main:'#F2B632', shade:'#B9871E', pedestal:'#241708', plaque:'#F2B632'},
+  honor:  {main:'#D9B8FF', shade:'#7B4FC9', pedestal:'#241708', plaque:'#7B4FC9'},
+  oro:    {main:'#F2B632', shade:'#B9871E', pedestal:'#241708', plaque:'#F2B632'},
+  plata:  {main:'#D7DCE4', shade:'#7C8798', pedestal:'#241708', plaque:'#7C8798'},
+  bronce: {main:'#D89A66', shade:'#8A4A24', pedestal:'#241708', plaque:'#8A4A24'},
+  confrat:{main:'#8FC4F2', shade:'#2E8FE0', pedestal:'#241708', plaque:'#2E8FE0'},
+};
+function trophySVG(kind){
+  const c = TROPHY_PALETTE[kind] || TROPHY_PALETTE.liga;
+  return `
+  <svg viewBox="0 0 120 170" xmlns="http://www.w3.org/2000/svg">
+    <rect x="32" y="148" width="56" height="16" rx="2" fill="${c.pedestal}"/>
+    <rect x="40" y="134" width="40" height="16" rx="2" fill="${c.pedestal}"/>
+    <rect x="47" y="128" width="26" height="7" rx="1" fill="${c.plaque}" opacity=".85"/>
+    <ellipse cx="60" cy="120" rx="17" ry="8" fill="${c.shade}"/>
+    <path d="M45,119 C45,133 75,133 75,119 L70,108 C66,115 54,115 50,108 Z" fill="${c.main}"/>
+    <rect x="55" y="96" width="10" height="16" fill="${c.main}"/>
+    <path d="M60,16
+             C46,28 76,40 58,54
+             C44,64 72,74 60,90
+             C74,76 48,66 62,54
+             C78,40 48,30 60,16 Z"
+          fill="${c.main}" stroke="${c.shade}" stroke-width="2" stroke-linejoin="round"/>
+    <circle cx="60" cy="54" r="5" fill="${c.shade}" opacity=".6"/>
+  </svg>`;
+}
+// Balón de goleador: pelota clásica blanco y negro, con el mismo brillo dorado que los trofeos.
+function soccerBallSVG(){
+  return `
+  <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="50" cy="50" r="44" fill="#F4F6FA" stroke="#152449" stroke-width="3"/>
+    <polygon points="50,27 61,35 57,49 43,49 39,35" fill="#152449"/>
+    <path d="M50,27 L50,6 M61,35 L80,24 M57,49 L74,62 M43,49 L26,62 M39,35 L20,24"
+          stroke="#152449" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+    <path d="M50,6 A44,44 0 0,1 80,24" stroke="#152449" stroke-width="3" fill="none" stroke-linecap="round" opacity=".55"/>
+    <path d="M74,62 A44,44 0 0,1 26,62" stroke="#152449" stroke-width="3" fill="none" stroke-linecap="round" opacity=".55"/>
+    <path d="M20,24 A44,44 0 0,1 50,6" stroke="#152449" stroke-width="3" fill="none" stroke-linecap="round" opacity=".55"/>
+  </svg>`;
+}
+
+/* ================= RENDER ================= */
+function render(){
+  const app = document.getElementById('app');
+  app.innerHTML = ({
+    home:renderHome, create:renderCreate, offers:renderOffers, season:renderSeason,
+    result:renderResult, event:renderEvent, transfer:renderTransfer, retired:renderRetired,
+    rules:renderRules, callup:renderCallup,
+  })[state.screen]();
+  bindEvents();
+}
+
+/* ---------- Sección "Detalles": toda la información de la Liga en un solo lugar ---------- */
+let _prevScreenBeforeRules = null;
+function openRules(){
+  if(!state) return;
+  if(state.screen!=='rules'){ _prevScreenBeforeRules = state.screen; state.screen='rules'; render(); }
+}
+function closeRules(){ state.screen = _prevScreenBeforeRules || 'home'; render(); }
+
+function renderRules(){
+  const juveniles = CATEGORIES.filter(c=>c.type==='juvenil');
+  const adultas = CATEGORIES.filter(c=>c.type==='adulta');
+  const catRows = CATEGORIES.map(c=>{
+    const rango = c.ageEnd>=80 ? (c.ageStart+'+') : (c.ageStart+'–'+c.ageEnd);
+    const fmt = c.type==='juvenil' ? ('Series ('+serieTeamsFor(c.id)+' equipos aprox.) + Copas Oro/Plata/Bronce/Confraternidad') : (c.divisions<=1 ? ('Categoría única de '+c.teams+' equipos') : (c.divisions+' Divisionales ('+DIV_LETTERS.slice(0,c.divisions).join(' · ')+') de '+c.teams+' equipos'));
+    return `<div class="details-row"><strong>${c.label}</strong> · ${rango} años · ${fmt}</div>`;
+  }).join('');
+  return `
+  <div class="eyebrow">Liga Universitaria de Deportes · Reglamento</div>
+  <h2>Detalles de la Liga</h2>
+  <div class="card">
+    <h3 style="font-size:16px;">Categorías por edad</h3>
+    <div class="details-box">${catRows}</div>
+  </div>
+  <div class="card">
+    <h3 style="font-size:16px;">Formativas: Sub 14, Sub 16 y Sub 18</h3>
+    <div class="details-box">
+      <div class="details-row">Se juega por Series (todos contra todos), sin ascenso ni descenso.</div>
+      <div class="details-row">Según la posición final en la serie, se clasifica a Copa de Oro, Copa de Plata, Copa de Bronce o Copa de Confraternidad.</div>
+      <div class="details-row">Las formativas no tienen Campeonato de Honor: esa instancia arranca recién en Sub 20.</div>
+    </div>
+  </div>
+  <div class="card">
+    <h3 style="font-size:16px;">Sub 20 en adelante: Divisionales</h3>
+    <div class="details-box">
+      <div class="details-row">Desde Sub 20 se juega por Divisionales (A, B, C...), con ascenso y descenso.</div>
+      <div class="details-row">En Divisionales de 16 equipos: suben los 4 primeros, bajan los 4 últimos.</div>
+      <div class="details-row">El ascenso o descenso es de un solo escalón por temporada — nunca se salta de la G a la A de un año a otro.</div>
+      <div class="details-row">La divisional inicial de cada club respeta su historia: los clubes grandes empiezan arriba, los chicos empiezan abajo.</div>
+    </div>
+  </div>
+  <div class="card">
+    <h3 style="font-size:16px;">Saltos de categoría</h3>
+    <div class="details-box">
+      <div class="details-row">Todos los pases de categoría (Sub 14 → Sub 16 → Sub 18 → Sub 20 → Reserva) se dan automáticamente según tu edad.</div>
+      <div class="details-row">El único que no es automático "de nombre": el pase de Reserva a Mayores te lo comunica el DT del plantel superior, que te llama para debutar en Primera.</div>
+    </div>
+  </div>
+  <div class="card">
+    <h3 style="font-size:16px;">Campeonato de Honor (desde Sub 20)</h3>
+    <div class="details-box">
+      <div class="details-row">Existe solo a partir de Sub 20 (categorías con Divisionales). Las formativas no lo disputan.</div>
+      <div class="details-row">Clasifican los 4 primeros de cada Divisional.</div>
+      <div class="details-row">Cualquiera de los clasificados puede ganarlo, no hace falta ser el campeón de tu Divisional.</div>
+    </div>
+  </div>
+  <div class="card">
+    <h3 style="font-size:16px;">Transferencias</h3>
+    <div class="details-box">
+      <div class="details-row">Las ofertas respetan tu nivel y el historial del club: en Divisionales bajas primero llegan ofertas de categorías vecinas.</div>
+      <div class="details-row">Solo con un rendimiento muy superior al de tu Divisional aparecen ofertas de categorías bien superiores.</div>
+      <div class="details-row">Si ya jugás en la A, no vas a recibir ofertas únicamente de clubes muy inferiores.</div>
+      <div class="details-row">Cada institución tiene un único club oficial (no hay variantes de color: por ejemplo, existe "Old Christians Club" pero no "Old Christians Verde" ni "Azul").</div>
+    </div>
+  </div>
+  <button class="btn gold" onclick="closeRules()">Volver</button>
+  `;
+}
+
+function renderHome(){
+  return `
+  <div class="eyebrow">Liga Universitaria de Deportes · Uruguay</div>
+  <h1 style="font-size:36px;">Construí tu carrera universitaria</h1>
+  <p class="muted" style="max-width:600px;">Arrancás a los 13 años en Sub 14 y recorrés toda la Liga Universitaria hasta el retiro en Más 40. En las formativas (Sub 14, 16 y 18) peleás las Copas de Oro, Plata, Bronce y Confraternidad; desde Sub 20 se juega por Divisionales, con ascensos, descensos y el Campeonato de Honor. Tu club, tus estudios, tus lesiones y tu vida fuera de la cancha van a marcar el rumbo de tu carrera.</p>
+  <div class="disclaimer">Cada club respeta su historia: los grandes empiezan arriba y los chicos abajo, y los ascensos/descensos son siempre graduales, un escalón por temporada. Mirá todo el reglamento en "Detalles de la Liga".</div>
+  <div class="row">
+    <button class="btn gold" data-action="start">Comenzar carrera</button>
+    <button class="btn secondary" onclick="openRules()">Ver Detalles de la Liga</button>
+  </div>
+  `;
+}
+
+function renderCreate(){
+  const p = state.player;
+  const linesHtml = POSITION_LINES.map(line=>`
+    <div class="pitch-line">${line.map(pos=>`<button class="pos-btn ${p.posicion===pos?'active':''}" data-action="pos" data-val="${pos}">${pos}</button>`).join('')}</div>
+  `).join('');
+  return `
+  <h2>Definí tu identidad</h2>
+  <div class="grid2">
+    <div class="card">
+      <div class="shirt-card"><div class="shirt-num">${p.numero||10}</div><div class="shirt-name">${p.apellido||'APELLIDO'}</div></div>
+      <div style="height:14px;"></div>
+      <label class="field-label">Apellido</label>
+      <input type="text" id="apellido" value="${p.apellido}" placeholder="APELLIDO" maxlength="16">
+      <div style="height:12px;"></div>
+      <label class="field-label">Número</label>
+      <input type="number" id="numero" value="${p.numero}" min="1" max="99">
+      <div style="height:12px;"></div>
+      <label class="field-label">Pierna hábil</label>
+      <div class="pill-choice">
+        <button data-action="pierna" data-val="Izquierda" class="${p.pierna==='Izquierda'?'active':''}">Izquierda</button>
+        <button data-action="pierna" data-val="Derecha" class="${p.pierna==='Derecha'?'active':''}">Derecha</button>
+      </div>
+      <div style="height:12px;"></div>
+      <label class="field-label">Nacionalidad</label>
+      <select id="pais">${COUNTRIES.map(c=>`<option value="${c.code}" ${p.pais===c.code?'selected':''}>${c.flag} ${c.name}</option>`).join('')}</select>
+    </div>
+    <div class="card">
+      <label class="field-label">Posición</label>
+      <div class="pitch">${linesHtml}</div>
+      <p class="muted" style="font-size:13px;margin-top:10px;">${POSITION_NAMES[p.posicion]}</p>
+    </div>
+  </div>
+  <button class="btn gold" data-action="toOffers">Buscar club formativo</button>
+  `;
+}
+
+function renderOffers(){
+  return `
+  <div class="eyebrow">Oferta de cantera · Sub 14</div>
+  <h2>¿Dónde empieza tu carrera?</h2>
+  <p class="muted">Tres instituciones te quieren en su proyecto juvenil.</p>
+  <div class="grid2" style="grid-template-columns:repeat(3,1fr);">
+    ${state.offers.map(name=>`
+      <div class="club-offer" data-action="pickClub" data-name="${name}">
+        <div style="font-weight:600;">${name}</div>
+        <div class="muted" style="font-size:12px;">Liga Universitaria de Deportes</div>
+      </div>
+    `).join('')}
+  </div>
+  `;
+}
+
+function renderSeason(){
+  const p = state.player;
+  const cat = currentCategory();
+  const locLabel = cat.type==='juvenil' ? ('Serie '+p.serieLetter) : (cat.divisions<=1 ? 'Categoría única' : ('Divisional '+DIV_LETTERS[clamp(p.clubDivisionTier,0,cat.divisions-1)]));
+  return `
+  <div class="grid2">
+    <div class="card">
+      <div class="shirt-card"><div class="shirt-num">${p.numero}</div><div class="shirt-name">${p.apellido}</div></div>
+      <div class="stat-grid">
+        <div class="stat-box"><div class="v">${Math.round(p.ovr)}</div><div class="l">OVR</div></div>
+        <div class="stat-box"><div class="v">${p.edad}</div><div class="l">Edad</div></div>
+        <div class="stat-box"><div class="v">${marketValue(p.ovr)}</div><div class="l">Valor</div></div>
+        <div class="stat-box"><div class="v">${p.posicion}</div><div class="l">Posición</div></div>
+      </div>
+      <p style="margin:4px 0 0;"><strong>${p.club}</strong><br><span class="muted" style="font-size:13px;">${cat.label} · ${locLabel}</span></p>
+      <div class="attr-grid">
+        ${ATTR_KEYS.map(k=>`
+          <div class="attr-row"><span>${ATTR_LABELS[k]}</span><span class="bar"><span style="width:${Math.round(p.attrs[k])}%"></span></span><span>${Math.round(p.attrs[k])}</span></div>
+        `).join('')}
+      </div>
+      <div class="row" style="margin-top:14px;">
+        <button class="btn gold" data-action="playSeason">Jugar temporada</button>
+        <button class="btn secondary" data-action="transferMarket">Buscar club nuevo</button>
+      </div>
+      <div class="row" style="margin-top:8px;">
+        <button class="btn secondary small" data-action="toggleDetails">${state.showDetails?'Ocultar detalles':'Ver detalles de la categoría'}</button>
+        <button class="btn secondary small" onclick="openRules()">Reglamento completo</button>
+        <button class="btn danger" data-action="retire">Retirarme</button>
+      </div>
+      ${state.showDetails ? renderCategoryDetails(cat) : ''}
+    </div>
+    <div class="card">
+      <h3 style="font-size:16px;">Historial</h3>
+      ${renderHistoryTable(p)}
+      <h3 style="font-size:16px;margin-top:18px;">Vitrina</h3>
+      ${renderTrophies(p)}
+    </div>
+  </div>
+  `;
+}
+
+function renderCategoryDetails(cat){
+  if(cat.type==='juvenil'){
+    return `<div class="details-box">
+      <div class="details-row">Formato: Series, todos contra todos, sin ascenso ni descenso.</div>
+      <div class="details-row">Equipos por serie: ${serieTeamsFor(cat.id)}</div>
+      <div class="details-row">Copas: 🥇 Copa de Oro · 🥈 Copa de Plata · 🥉 Copa de Bronce · 🤝 Copa de Confraternidad, según tu posición final en la serie.</div>
+      <div class="details-row">Esta categoría no tiene Campeonato de Honor: esa instancia recién arranca en Sub 20.</div>
+    </div>`;
+  } else if(cat.divisions<=1){
+    return `<div class="details-box">
+      <div class="details-row">Formato: una sola categoría de ${cat.teams} equipos, sin ascenso ni descenso.</div>
+      <div class="details-row">Hay Campeón y Subcampeón.</div>
+      <div class="details-row">Campeonato de Honor: clasifican los 4 primeros. Un solo campeón.</div>
+    </div>`;
+  } else {
+    const letters = DIV_LETTERS.slice(0,cat.divisions).join(' · ');
+    return `<div class="details-box">
+      <div class="details-row">Divisionales existentes: ${letters} (${cat.divisions} en total, ${cat.teams} equipos cada una)</div>
+      <div class="details-row">Suben los 4 primeros de cada Divisional (menos en la A). Bajan los 4 últimos (menos en la última). Siempre un escalón por temporada.</div>
+      <div class="details-row">Hay Campeón y Subcampeón en cada Divisional.</div>
+      <div class="details-row">Campeonato de Honor: clasifican los 4 primeros de cada Divisional. Un solo campeón para toda la categoría.</div>
+    </div>`;
+  }
+}
+
+function renderHistoryTable(p){
+  if(p.history.length===0) return `<p class="muted" style="font-size:13px;">Todavía no jugaste ninguna temporada.</p>`;
+  const rows = p.history.slice().reverse().map(h=>`
+    <tr>
+      <td>${h.edad}</td>
+      <td>${h.club}<br><span class="muted" style="font-size:11px;">${h.categoria} · ${h.tierLabel}</span></td>
+      <td>${h.ovr}</td>
+      <td>${h.posFinal}º</td>
+      <td>${h.gls}</td>
+      <td>${h.ast}</td>
+      <td>
+        ${h.tierDir ? `<span class="tag ${h.tierDir==='up'?'up':'down'}">${h.tierDir==='up'?'Ascenso':'Descenso'}</span>` : ''}
+        ${h.posFinal===1 ? `<span class="tag oro">Liga</span>` : ''}
+        ${h.cupChamp ? `<span class="tag ${h.cupLabel==='Copa de Oro'?'oro':h.cupLabel==='Copa de Plata'?'plata':h.cupLabel==='Copa de Bronce'?'bronce':'confrat'}">${h.cupLabel}</span>` : ''}
+        ${h.honorChamp ? `<span class="tag honor">Honor</span>` : ''}
+        ${h.mvp ? `<span class="tag oro">MVP</span>` : ''}
+        ${h.topScorer ? `<span class="tag oro">⚽ Goleador</span>` : ''}
+      </td>
+    </tr>
+  `).join('');
+  return `<table><thead><tr><th>Edad</th><th>Club</th><th>OVR</th><th>Pos</th><th>Gls</th><th>Ast</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+function renderTrophies(p){
+  if(p.trophies.length===0) return `<p class="muted" style="font-size:13px;">Vitrina vacía... por ahora.</p>`;
+  return `<div class="trophy-list">${p.trophies.slice().reverse().map(t=>`<div class="trophy-item">🏆 <span style="font-size:13px;">${t}</span></div>`).join('')}</div>`;
+}
+
+function renderResult(){
+  const p = state.player;
+  const h = state.lastResult;
+  let trophyBlocks = '';
+  if(h.posFinal===1){
+    trophyBlocks += `<div class="trophy-anim"><div class="icon">${trophySVG('liga')}</div><div class="label">Campeón de Liga</div></div>`;
+  }
+  if(h.cupChamp){
+    const kind = h.cupLabel==='Copa de Oro'?'oro':h.cupLabel==='Copa de Plata'?'plata':h.cupLabel==='Copa de Bronce'?'bronce':'confrat';
+    trophyBlocks += `<div class="trophy-anim small"><div class="icon">${trophySVG(kind)}</div><div class="label">${h.cupLabel}</div></div>`;
+  }
+  if(h.honorChamp){
+    trophyBlocks += `<div class="trophy-anim honor"><div class="icon">${trophySVG('honor')}</div><div class="label">Campeón de Honor</div></div>`;
+  }
+  if(h.topScorer){
+    trophyBlocks += `<div class="trophy-anim small"><div class="icon">${soccerBallSVG()}</div><div class="label">Balón de Goleador</div></div>`;
+  }
+  let msgs = [];
+  if(h.cupLabel && !h.cupChamp) msgs.push(`Jugaste la ${h.cupLabel}, pero quedaste en el camino.`);
+  if(h.honorQualified && !h.honorChamp) msgs.push('Clasificaste al Campeonato de Honor, pero no lograste el título.');
+  if(h.mvp) msgs.push('Además, fuiste elegido MVP de la temporada.');
+  return `
+  <div class="eyebrow">${h.categoria} · ${h.edad} años</div>
+  <h2>Temporada cerrada</h2>
+  <div class="card">
+    ${trophyBlocks}
+    <p>Terminaste <strong>${h.posFinal}º</strong> en ${h.tierLabel} con <strong>${p.club}</strong>.</p>
+    <div class="stat-grid">
+      <div class="stat-box"><div class="v">${h.pj}</div><div class="l">PJ</div></div>
+      <div class="stat-box"><div class="v">${h.gls}</div><div class="l">Goles</div></div>
+      <div class="stat-box"><div class="v">${h.ast}</div><div class="l">Asist.</div></div>
+      <div class="stat-box"><div class="v">${h.ovr}</div><div class="l">OVR</div></div>
+    </div>
+    ${h.tierNote ? `<p><span class="tag ${h.tierDir==='up'?'up':'down'}">${h.tierNote}</span></p>` : ''}
+    ${msgs.length? `<p class="muted">${msgs.join(' ')}</p>` : ''}
+  </div>
+  <button class="btn gold" data-action="advance">Continuar</button>
+  `;
+}
+
+function renderEvent(){
+  const ev = state.pendingEvent;
+  return `
+  <h2>Decisión</h2>
+  <div class="event-box">
+    <p>${ev.text}</p>
+    <div class="row">${ev.options.map((o,i)=>`<button class="btn secondary" data-action="event" data-idx="${i}">${o.label}</button>`).join('')}</div>
+  </div>
+  `;
+}
+
+function renderCallup(){
+  const p = state.player;
+  return `
+  <div class="eyebrow">Debut en Primera</div>
+  <h2>¡El DT te subió al plantel de Mayores!</h2>
+  <div class="event-box" style="text-align:center;">
+    <div class="trophy-anim"><div class="icon" style="font-size:52px;">📞</div></div>
+    <p>Después de tu paso por Reserva en <strong>${p.club}</strong>, el entrenador de Primera decidió darte
+    la oportunidad y te llamó personalmente para el plantel de Mayores.</p>
+    <p class="muted" style="font-size:12px;">A diferencia de los demás saltos de categoría (que se dan
+    automáticamente según tu edad), este es el único ascenso que se gana con el llamado del cuerpo técnico.</p>
+  </div>
+  <button class="btn gold" data-action="continueCallup">Debutar en Mayores</button>
+  `;
+}
+
+function renderTransfer(){
+  return `
+  <h2>Mercado de pases</h2>
+  <p class="muted">Recibiste ofertas para cambiar de club antes de la próxima temporada. Siempre acordes a tu nivel actual y al historial de cada institución.</p>
+  <div class="grid2">
+    ${state.transferOffers.map((o,i)=>`
+      <div class="club-offer" data-action="pickTransfer" data-idx="${i}">
+        <div style="font-weight:600;">${o.name}</div>
+        ${o.tier!==null && o.tier!==undefined ? `<div class="div-tag">Divisional ${DIV_LETTERS[o.tier]}</div>` : ''}
+        ${o.familyCall ? `<div class="family-tag">📞 Llamado del club principal de la institución</div>` : ''}
+      </div>
+    `).join('')}
+  </div>
+  <button class="btn secondary" style="margin-top:10px;" data-action="cancelTransfer">Quedarme en mi club</button>
+  `;
+}
+
+function renderRetired(){
+  const p = state.player;
+  const c = p.career;
+  const avgGpg = p.pj>0 ? (p.gls/p.pj).toFixed(2) : '0.00';
+  return `
+  <div class="eyebrow">Fin de carrera</div>
+  <h2>${p.apellido} se retira</h2>
+  <div class="card">
+    <p class="muted" style="margin:0;">Última temporada: ${p.history.length? p.history[p.history.length-1].categoria : '—'} · Pico de nivel: <span class="badge-ovr">${Math.round(p.peakOvr)}</span></p>
+    <div class="stat-grid">
+      <div class="stat-box"><div class="v">${p.pj}</div><div class="l">Partidos</div></div>
+      <div class="stat-box"><div class="v">${p.gls}</div><div class="l">Goles</div></div>
+      <div class="stat-box"><div class="v">${p.ast}</div><div class="l">Asistencias</div></div>
+      <div class="stat-box"><div class="v">${avgGpg}</div><div class="l">Gls/PJ</div></div>
+      <div class="stat-box"><div class="v">${c.amarillas}</div><div class="l">Amarillas</div></div>
+      <div class="stat-box"><div class="v">${c.rojas}</div><div class="l">Rojas</div></div>
+      <div class="stat-box"><div class="v">${c.mvps}</div><div class="l">MVPs</div></div>
+      <div class="stat-box"><div class="v">${c.goleadores}</div><div class="l">Goleador</div></div>
+      <div class="stat-box"><div class="v">${p.history.length}</div><div class="l">Años jugados</div></div>
+      <div class="stat-box"><div class="v">${c.ligaTitles}</div><div class="l">Ligas</div></div>
+      <div class="stat-box"><div class="v">${c.honorTitles}</div><div class="l">Honor</div></div>
+      <div class="stat-box"><div class="v">${c.copaOro}</div><div class="l">C. Oro</div></div>
+      <div class="stat-box"><div class="v">${c.copaPlata}</div><div class="l">C. Plata</div></div>
+      <div class="stat-box"><div class="v">${c.copaBronce}</div><div class="l">C. Bronce</div></div>
+      <div class="stat-box"><div class="v">${c.copaConfraternidad}</div><div class="l">C. Confrat.</div></div>
+      <div class="stat-box"><div class="v">${c.ascensos}</div><div class="l">Ascensos</div></div>
+      <div class="stat-box"><div class="v">${c.descensos}</div><div class="l">Descensos</div></div>
+      <div class="stat-box"><div class="v">${p.clubsPlayed.length}</div><div class="l">Clubes</div></div>
+    </div>
+    <p style="font-size:13px;"><strong>Clubes en los que jugaste:</strong> ${p.clubsPlayed.join(', ')}</p>
+    <h3 style="font-size:16px;margin-top:10px;">Vitrina final</h3>
+    ${renderTrophies(p)}
+    <h3 style="font-size:16px;margin-top:18px;">Recorrido completo</h3>
+    ${renderHistoryTable(p)}
+  </div>
+  <button class="btn gold" data-action="restart">Jugar de nuevo</button>
+  `;
+}
+
+/* ================= BIND ================= */
+function bindEvents(){
+  const app = document.getElementById('app');
+  app.querySelectorAll('[data-action]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const action = el.getAttribute('data-action');
+      if(action==='start') startCreate();
+      else if(action==='pos'){ state.player.posicion = el.getAttribute('data-val'); render(); }
+      else if(action==='pierna'){ state.player.pierna = el.getAttribute('data-val'); render(); }
+      else if(action==='toOffers'){
+        state.player.apellido = document.getElementById('apellido').value.toUpperCase();
+        state.player.numero = parseInt(document.getElementById('numero').value)||10;
+        state.player.pais = document.getElementById('pais').value;
+        goToOffers();
+      }
+      else if(action==='pickClub'){ pickClub(el.getAttribute('data-name')); }
+      else if(action==='playSeason') playSeason();
+      else if(action==='transferMarket') openTransferMarket();
+      else if(action==='pickTransfer'){ pickTransfer(state.transferOffers[parseInt(el.getAttribute('data-idx'))]); }
+      else if(action==='cancelTransfer') cancelTransfer();
+      else if(action==='retire') retireNow();
+      else if(action==='advance') advanceAfterResult();
+      else if(action==='event'){ resolveEvent(state.pendingEvent.options[parseInt(el.getAttribute('data-idx'))]); }
+      else if(action==='restart') restart();
+      else if(action==='toggleDetails') toggleDetails();
+      else if(action==='continueCallup') continueFromCallup();
+    });
+  });
+}
+
+/* ================= CONTADORES GLOBALES (Firebase Firestore) =================
+   Dos contadores reales, compartidos entre TODOS los que jueguen (no dependen del navegador
+   de cada uno): "count" = carreras iniciadas, "seasons" = partidas (temporadas) jugadas.
+
+   PASO A PASO PARA CONFIGURARLO (una sola vez):
+   1) Andá a https://console.firebase.google.com/ -> "Agregar proyecto" -> ponele un nombre
+      (ej. "liguero-lud") -> podés desactivar Google Analytics -> "Crear proyecto".
+   2) En el menú izquierdo: Compilación (Build) -> "Firestore Database" -> "Crear base de datos"
+      -> elegí "Modo producción" -> elegí una región (cualquiera cercana, ej. southamerica-east1)
+      -> "Habilitar".
+   3) Ya en Firestore, botón "Iniciar colección":
+        - ID de la colección: stats
+        - ID del documento: careerCounter
+        - Campo 1: count     Tipo: number   Valor: 0
+        - Campo 2: seasons   Tipo: number   Valor: 0   (agregalo con el botón "+ Agregar campo")
+      Guardar.
+   4) Pestaña "Reglas" (arriba, al lado de "Datos") y reemplazá todo por esto:
+
+        rules_version = '2';
+        service cloud.firestore {
+          match /databases/{database}/documents {
+            match /stats/careerCounter {
+              allow read: if true;
+              allow update: if request.resource.data.keys().hasOnly(['count','seasons'])
+                            && (
+                                 (request.resource.data.count == resource.data.count + 1
+                                  && request.resource.data.seasons == resource.data.seasons)
+                                 ||
+                                 (request.resource.data.seasons == resource.data.seasons + 1
+                                  && request.resource.data.count == resource.data.count)
+                               );
+              allow create, delete: if false;
+            }
+          }
+        }
+
+      Esto deja que cualquiera LEA los números, pero solo permite SUMAR de a 1 por vez a UN
+      campo a la vez (nadie puede resetear los contadores ni pisar otros campos). "Publicar".
+   5) Configuración del proyecto (ícono de engranaje, arriba a la izquierda) -> "Configuración del
+      proyecto" -> abajo del todo, "Tus apps" -> ícono "</>" (Web) -> registrá una app (el nombre
+      no importa, no hace falta Firebase Hosting) -> Firebase te muestra un objeto firebaseConfig.
+   6) Copiá ESE objeto completo y pegalo reemplazando el de ejemplo de acá abajo (los 6 campos:
+      apiKey, authDomain, projectId, storageBucket, messagingSenderId, appId).
+*/
+const firebaseConfig = {
+  apiKey: "PEGA_TU_API_KEY_ACA",
+  authDomain: "PEGA_TU_AUTH_DOMAIN_ACA",
+  projectId: "PEGA_TU_PROJECT_ID_ACA",
+  storageBucket: "PEGA_TU_STORAGE_BUCKET_ACA",
+  messagingSenderId: "PEGA_TU_MESSAGING_SENDER_ID_ACA",
+  appId: "PEGA_TU_APP_ID_ACA"
+};
+let _fbReady = false;
+try{
+  firebase.initializeApp(firebaseConfig);
+  _fbReady = true;
+}catch(e){ console.error('Firebase no se pudo inicializar. Revisá el firebaseConfig.', e); }
+const db = _fbReady ? firebase.firestore() : null;
+const careerCounterRef = db ? db.collection('stats').doc('careerCounter') : null;
+
+// Lee los dos contadores y los deja "en vivo": si cualquier persona en cualquier lado empieza
+// una carrera o juega una temporada, los números se actualizan solos para todo el mundo, sin
+// necesidad de recargar la página.
+function loadCareerCount(){
+  const el = document.getElementById('careerCount');
+  const elSeasons = document.getElementById('seasonsCount');
+  if(!careerCounterRef){ if(el) el.textContent='—'; if(elSeasons) elSeasons.textContent='—'; return; }
+  careerCounterRef.onSnapshot(
+    (doc)=>{
+      const data = doc.exists ? doc.data() : {};
+      if(el) el.textContent = (typeof data.count === 'number') ? data.count : 0;
+      if(elSeasons) elSeasons.textContent = (typeof data.seasons === 'number') ? data.seasons : 0;
+    },
+    (err)=>{
+      console.error('No se pudo leer los contadores globales de Firestore:', err);
+      if(el) el.textContent = '—'; if(elSeasons) elSeasons.textContent = '—';
+    }
+  );
+}
+
+// Suma 1 al contador global de carreras. Se llama SOLO desde startCreate() (click en
+// "Comenzar carrera"), nunca al recargar la página ni al elegir posición/club.
+function incrementCareerCounter(){
+  if(!careerCounterRef) return;
+  careerCounterRef.update({ count: firebase.firestore.FieldValue.increment(1) })
+    .catch((err)=> console.error('No se pudo incrementar el contador global de carreras:', err));
+}
+
+// Suma 1 al contador global de partidas (temporadas jugadas). Se llama SOLO desde playSeason()
+// (click en "Jugar temporada"), así el número refleja partidas reales de todo el mundo.
+function incrementSeasonsCounter(){
+  if(!careerCounterRef) return;
+  careerCounterRef.update({ seasons: firebase.firestore.FieldValue.increment(1) })
+    .catch((err)=> console.error('No se pudo incrementar el contador global de partidas:', err));
+}
+
+let feedbackRating = null;
+function setupFeedbackUI(){
+  const btn=document.getElementById('feedbackBtn');
+  const modal=document.getElementById('feedbackModal');
+  const rateUp=document.getElementById('rateUp');
+  const rateDown=document.getElementById('rateDown');
+  const send=document.getElementById('sendFeedback');
+  const close1=document.getElementById('closeFeedback');
+  const close2=document.getElementById('closeFeedback2');
+  function openModal(){ modal.style.display='flex'; document.getElementById('feedbackForm').style.display='block'; document.getElementById('feedbackThanks').style.display='none'; }
+  function closeModal(){ modal.style.display='none'; }
+  // El botón de feedback es flotante y discreto: solo aparece si se lo toca, nunca interrumpe la partida.
+  btn.addEventListener('click', openModal);
+  close1.addEventListener('click', closeModal);
+  close2.addEventListener('click', closeModal);
+  modal.addEventListener('click', (e)=>{ if(e.target===modal) closeModal(); });
+  rateUp.addEventListener('click', ()=>{ feedbackRating='up'; rateUp.classList.add('active'); rateDown.classList.remove('active'); });
+  rateDown.addEventListener('click', ()=>{ feedbackRating='down'; rateDown.classList.add('active'); rateUp.classList.remove('active'); });
+  send.addEventListener('click', async ()=>{
+    const comment = document.getElementById('feedbackComment').value.trim();
+    const payload = {rating:feedbackRating, comment, ts:Date.now()};
+    let saved=false;
+    if(window.storage){
+      try{
+        const key = 'feedback:'+Date.now()+'_'+Math.random().toString(36).slice(2,8);
+        await window.storage.set(key, JSON.stringify(payload), true);
+        saved=true;
+      }catch(e){ saved=false; }
+    }
+    if(!saved){
+      // Publicado como página web sin backend propio: se guarda localmente en el navegador.
+      // Para recibir estos comentarios de verdad, conviene reemplazar este bloque por un
+      // endpoint gratuito tipo Formspree o un Google Form, o simplemente leer el localStorage
+      // "lud_feedback_*" desde la consola del navegador de quien lo publique.
+      try{ localStorage.setItem('lud_feedback_'+Date.now(), JSON.stringify(payload)); }catch(e){}
+      saved = true;
+    }
+    document.getElementById('feedbackForm').style.display='none';
+    document.getElementById('feedbackThanks').style.display='block';
+  });
+}
+
+/* ================= INIT ================= */
+state = newState();
+render();
+setupFeedbackUI();
+loadCareerCount();
+</script>
+</body>
+</html>
