@@ -6,9 +6,6 @@
 <title>Carrera Universitaria — LUD</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Space+Grotesk:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<!-- Firebase (contador global de carreras) -->
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <style>
   /* Paleta inspirada en la identidad real de la Liga Universitaria de Deportes (LUD):
      fondo claro, header azul marino con linea dorada, acentos celestes tipo "Otros Deportes". */
@@ -1172,100 +1169,71 @@ function bindEvents(){
   });
 }
 
-/* ================= CONTADORES GLOBALES (Firebase Firestore) =================
-   Dos contadores reales, compartidos entre TODOS los que jueguen (no dependen del navegador
-   de cada uno): "count" = carreras iniciadas, "seasons" = partidas (temporadas) jugadas.
-
-   PASO A PASO PARA CONFIGURARLO (una sola vez):
-   1) Andá a https://console.firebase.google.com/ -> "Agregar proyecto" -> ponele un nombre
-      (ej. "liguero-lud") -> podés desactivar Google Analytics -> "Crear proyecto".
-   2) En el menú izquierdo: Compilación (Build) -> "Firestore Database" -> "Crear base de datos"
-      -> elegí "Modo producción" -> elegí una región (cualquiera cercana, ej. southamerica-east1)
-      -> "Habilitar".
-   3) Ya en Firestore, botón "Iniciar colección":
-        - ID de la colección: stats
-        - ID del documento: careerCounter
-        - Campo 1: count     Tipo: number   Valor: 0
-        - Campo 2: seasons   Tipo: number   Valor: 0   (agregalo con el botón "+ Agregar campo")
-      Guardar.
-   4) Pestaña "Reglas" (arriba, al lado de "Datos") y reemplazá todo por esto:
-
-        rules_version = '2';
-        service cloud.firestore {
-          match /databases/{database}/documents {
-            match /stats/careerCounter {
-              allow read: if true;
-              allow update: if request.resource.data.keys().hasOnly(['count','seasons'])
-                            && (
-                                 (request.resource.data.count == resource.data.count + 1
-                                  && request.resource.data.seasons == resource.data.seasons)
-                                 ||
-                                 (request.resource.data.seasons == resource.data.seasons + 1
-                                  && request.resource.data.count == resource.data.count)
-                               );
-              allow create, delete: if false;
-            }
-          }
-        }
-
-      Esto deja que cualquiera LEA los números, pero solo permite SUMAR de a 1 por vez a UN
-      campo a la vez (nadie puede resetear los contadores ni pisar otros campos). "Publicar".
-   5) Configuración del proyecto (ícono de engranaje, arriba a la izquierda) -> "Configuración del
-      proyecto" -> abajo del todo, "Tus apps" -> ícono "</>" (Web) -> registrá una app (el nombre
-      no importa, no hace falta Firebase Hosting) -> Firebase te muestra un objeto firebaseConfig.
-   6) Copiá ESE objeto completo y pegalo reemplazando el de ejemplo de acá abajo (los 6 campos:
-      apiKey, authDomain, projectId, storageBucket, messagingSenderId, appId).
+/* ================= CONTADORES GLOBALES (públicos, sin configurar nada) =================
+   Dos contadores reales, compartidos entre TODOS los que jueguen desde cualquier navegador:
+   uno de carreras iniciadas y otro de partidas (temporadas) jugadas. Usan un servicio de
+   contadores públicos y gratuitos (countapi.mileshilliard.com, el reemplazo activo del viejo
+   countapi.xyz que dejó de funcionar) — no hace falta crear ninguna cuenta ni configurar nada,
+   funcionan apenas subís el archivo. Como esa API no usa "namespaces" (todas las claves son
+   globales), las claves de acá abajo ya son bien únicas para no chocar con el contador de nadie
+   más. Si por algún motivo el servicio no responde, cada contador cae de forma automática a un
+   conteo local en el propio navegador (se avisa con "(en este navegador)") para que el número
+   nunca quede roto en pantalla.
 */
-const firebaseConfig = {
-  apiKey: "PEGA_TU_API_KEY_ACA",
-  authDomain: "PEGA_TU_AUTH_DOMAIN_ACA",
-  projectId: "PEGA_TU_PROJECT_ID_ACA",
-  storageBucket: "PEGA_TU_STORAGE_BUCKET_ACA",
-  messagingSenderId: "PEGA_TU_MESSAGING_SENDER_ID_ACA",
-  appId: "PEGA_TU_APP_ID_ACA"
-};
-let _fbReady = false;
-try{
-  firebase.initializeApp(firebaseConfig);
-  _fbReady = true;
-}catch(e){ console.error('Firebase no se pudo inicializar. Revisá el firebaseConfig.', e); }
-const db = _fbReady ? firebase.firestore() : null;
-const careerCounterRef = db ? db.collection('stats').doc('careerCounter') : null;
+const COUNTER_API_BASE = 'https://countapi.mileshilliard.com/api/v1';
+const CAREERS_KEY = 'liguero_lud_santiago_geisinger_carreras_iniciadas';
+const SEASONS_KEY = 'liguero_lud_santiago_geisinger_partidas_jugadas';
 
-// Lee los dos contadores y los deja "en vivo": si cualquier persona en cualquier lado empieza
-// una carrera o juega una temporada, los números se actualizan solos para todo el mundo, sin
-// necesidad de recargar la página.
-function loadCareerCount(){
+function parseCounterValue(data){
+  if(!data) return null;
+  const n = typeof data.value === 'number' ? data.value : parseInt(data.value, 10);
+  return Number.isFinite(n) ? n : null;
+}
+async function fetchGlobalCount(key){
+  try{
+    const res = await fetch(`${COUNTER_API_BASE}/get/${key}`);
+    if(res.status === 404) return 0; // todavía nadie hizo el primer hit de esta clave
+    const data = await res.json();
+    return parseCounterValue(data);
+  }catch(e){ return null; }
+}
+async function hitGlobalCount(key){
+  try{
+    const res = await fetch(`${COUNTER_API_BASE}/hit/${key}`);
+    const data = await res.json();
+    return parseCounterValue(data);
+  }catch(e){ return null; }
+}
+
+// Lee los dos contadores globales al cargar la página (nunca los incrementa, solo los muestra).
+async function loadCareerCount(){
   const el = document.getElementById('careerCount');
   const elSeasons = document.getElementById('seasonsCount');
-  if(!careerCounterRef){ if(el) el.textContent='—'; if(elSeasons) elSeasons.textContent='—'; return; }
-  careerCounterRef.onSnapshot(
-    (doc)=>{
-      const data = doc.exists ? doc.data() : {};
-      if(el) el.textContent = (typeof data.count === 'number') ? data.count : 0;
-      if(elSeasons) elSeasons.textContent = (typeof data.seasons === 'number') ? data.seasons : 0;
-    },
-    (err)=>{
-      console.error('No se pudo leer los contadores globales de Firestore:', err);
-      if(el) el.textContent = '—'; if(elSeasons) elSeasons.textContent = '—';
-    }
-  );
+  const [careers, seasons] = await Promise.all([fetchGlobalCount(CAREERS_KEY), fetchGlobalCount(SEASONS_KEY)]);
+  if(el) el.textContent = careers!==null ? careers : (parseInt(localStorage.getItem('lud_local_careers')||'0',10)+' (en este navegador)');
+  if(elSeasons) elSeasons.textContent = seasons!==null ? seasons : (parseInt(localStorage.getItem('lud_local_seasons')||'0',10)+' (en este navegador)');
 }
 
 // Suma 1 al contador global de carreras. Se llama SOLO desde startCreate() (click en
 // "Comenzar carrera"), nunca al recargar la página ni al elegir posición/club.
-function incrementCareerCounter(){
-  if(!careerCounterRef) return;
-  careerCounterRef.update({ count: firebase.firestore.FieldValue.increment(1) })
-    .catch((err)=> console.error('No se pudo incrementar el contador global de carreras:', err));
+async function incrementCareerCounter(){
+  const el = document.getElementById('careerCount');
+  const n = await hitGlobalCount(CAREERS_KEY);
+  if(n!==null){ if(el) el.textContent = n; return; }
+  let local = parseInt(localStorage.getItem('lud_local_careers')||'0',10)+1;
+  try{ localStorage.setItem('lud_local_careers', String(local)); }catch(_){}
+  if(el) el.textContent = local+' (en este navegador)';
 }
 
 // Suma 1 al contador global de partidas (temporadas jugadas). Se llama SOLO desde playSeason()
 // (click en "Jugar temporada"), así el número refleja partidas reales de todo el mundo.
-function incrementSeasonsCounter(){
-  if(!careerCounterRef) return;
-  careerCounterRef.update({ seasons: firebase.firestore.FieldValue.increment(1) })
-    .catch((err)=> console.error('No se pudo incrementar el contador global de partidas:', err));
+async function incrementSeasonsCounter(){
+  const el = document.getElementById('seasonsCount');
+  const n = await hitGlobalCount(SEASONS_KEY);
+  if(n!==null){ if(el) el.textContent = n; return; }
+  let local = parseInt(localStorage.getItem('lud_local_seasons')||'0',10)+1;
+  try{ localStorage.setItem('lud_local_seasons', String(local)); }catch(_){}
+  if(el) el.textContent = local+' (en este navegador)';
 }
 
 let feedbackRating = null;
